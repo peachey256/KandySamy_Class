@@ -30,11 +30,21 @@
 
 
 \section{Histogram\label{histo}}
-\qquad words 
+\qquad The histogram code generates an n length vector and then sorts all
+the data into a histogram with 500 bins. In the multi-threaded aprroach each
+thread is assigned a chunk of data to sort. This chunk of data is statically
+assigned so they sort equal sized chunks. Each thread keeps a local copy of
+the histogram containing the data that it sorted. Then after each thread
+sorts its own chunk of data it reaches a critical section in which the
+histogram in shared memory is incremented with the values in the local
+histograms. As seen in the below table peak performance is reached with 8
+threads, performance is not improved with 16 threads because of the overhead
+associated with spawning more threads. 
 
 \begin{center}
-\begin{tabular}{|c|c|c|c|}
-\hline 
+\hspace*{-2.5cm}
+\begin{tabular}{@{}|c|c|c|c|}
+\hline
 Threads & 1 million items & 10 million items & 100 million items \\
 \hline 
 2 & 1.40 & 1.29 & 1.10 \\
@@ -43,9 +53,10 @@ Threads & 1 million items & 10 million items & 100 million items \\
 \hline
 8 & 3.00 & 4.17 & 4.42 \\
 \hline 
-16 & 2.50 & 4.15 & 3.56
+16 & 2.50 & 4.15 & 3.56 \\
 \hline 
 \end{tabular}
+\hspace*{-2.5cm}
 \end{center}
 
 
