@@ -39,7 +39,8 @@ sorts its own chunk of data it reaches a critical section in which the
 histogram in shared memory is incremented with the values in the local
 histograms. As seen in the below table peak performance is reached with 8
 threads, performance is not improved with 16 threads because of the overhead
-associated with spawning more threads. 
+associated with spawning more threads. Then an explanation in psuedo-code of
+how the parallel code is structured follows the table.  
 
 \begin{center}
 \hspace*{-2.5cm}
@@ -58,6 +59,21 @@ Threads & 1 million items & 10 million items & 100 million items \\
 \end{tabular}
 \hspace*{-2.5cm}
 \end{center}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwResult{Parallel Organization of data into Histogram}
+initialization\;
+creation of threads\; 
+\For{i in amount of data in thread chunk}{
+localHist[array[i]]++\; 
+}
+critical section\; 
+\For{all the bins in the histogram}{
+sharedHist[i]+=localHist[i]\; 
+}
+\end{algorithm}
+
 
 
 \section{Guassian Elimination\label{guass}}
