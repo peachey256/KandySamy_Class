@@ -89,40 +89,53 @@ int gauss_eliminate_using_openmp(Matrix A, Matrix U)                  /* Write c
 { 
 	unsigned int i, j, k;
 	int n = A.num_rows; 
-	Matrix temp; 
-	temp  = allocate_matrix(MATRIX_SIZE, MATRIX_SIZE, 0);
-#pragma omp parallel shared(n, k, A, U, temp) private(j,i) 
-{ 
-    for (k = 0; k < n; k++){ 
-		#pragma omp for 
-		for (j = (k); j < n; j++){   // Reduce the current row.
-		 	if (A.elements[n*k + k] == 0){
-				printf("Numerical instability detected. The principal diagonal element is zero. \n");
-				k = j = n;//break;
-				}
-            // Division step.
-			U.elements[n * k + j] = (float)(A.elements[n * k + j] / A.elements[n * k + k]);
-        	printf("thread %d is editing spot (%d,%d) \n",omp_get_thread_num(), k, j);
-		}
-		#pragma omp for collapse(2)	
-        for (i = (k+1); i < n; i++){ 
-			for (j = (k); j < n; j++){   /* Elimnation step. */
-				U.elements[n * i + j] = A.elements[n * i + j] -\
-                	(A.elements[n * i + k] * (float)(A.elements[n * k + j] / A.elements[n * k + k]));
-					printf("thread %d is editing spot (%d,%d) \n",omp_get_thread_num(), i, j);
-		}
-		}  
-		#pragma omp barrier //synch all the stuff after each section
-		//Then ping pong the matrices
-		temp=A; 
-		A=U; 
-		U=temp;
-		printf("New K!\n"); 
-	}
+	float * fuck; 
+	Matrix temp = allocate_matrix(MATRIX_SIZE, MATRIX_SIZE, 0);
+	
+#pragma omp parallel for collapse(2) default(shared) private(j,i) 
+	for (i = 0; i < n; i ++)             /* Copy the contents of the A matrix into the U matrix. */
+        for(j = 0; j < n; j++)
+            temp.elements[n * i + j] = A.elements[n * i + j];
 
-}
+
+	for (k = 0; k < n; k++){  
+		#pragma omp parallel for collapse(2) default(shared) private(j,i)  
+        for (i = (k); i < n; i ++){ 
+			for (j = (k); j < n ; j++){   /* Elimnation step. */
+				if(i==k)
+ 				{ // Division step. 
+ 			 		if (temp.elements[n *k + k] == 0){ 
+						printf("Numerical instability detected. The principal diagonal element is zero. \n");
+						k = j = n;//break;
+		 			}
+					U.elements[n * k + j] = (float)(temp.elements[n * k + j] / temp.elements[n * k + k]);
+					//if (k!=0){
+					//	U.elements[n*(k-1)+j]=temp.elements[n*(k-1)+j];
+					//	U.elements[n*j+(k-1)]=temp.elements[n*j+(k-1)];
+		 			//}
+				}else {
+					U.elements[n * i + j] = temp.elements[n * i + j] -\
+                		(temp.elements[n * i + k] * (float)(temp.elements[n * k + j] / temp.elements[n * k + k]));
+		   	 	}
+ 		  	}
+ 		 } 
+		//U.elements[n*k+k]=1; 
+		#pragma omp barrier //synch all the stuff after each section
+		//ping pong 
+		if (k!=n-1) // dont swap last one
+		{  
+		//fuck=temp.elements; 
+		//temp.elements=U.elements; 
+		//U.elements=fuck; 
+		#pragma omp parallel for private(j)	
+			for(j = 0; j < n*n; j++){
+				temp.elements[j] = U.elements[j];
+			//	temp.elements[n * j + k] = U.elements[n * j + k]; 
+ 			}
+		}
+ 	}
 return 0; 
-}
+} 
 
 
 int 
@@ -130,8 +143,7 @@ check_results(float *A, float *B, unsigned int size, float tolerance)   /* Check
 {
 	for(int i = 0; i < size; i++)
 		if(fabsf(A[i] - B[i]) > tolerance)
-			return 0;
-	
+			return 0;  
     return 1;
 }
 
