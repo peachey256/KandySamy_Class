@@ -89,15 +89,15 @@ int gauss_eliminate_using_openmp(Matrix A, Matrix U)                  /* Write c
 { 
 	unsigned int i, j, k;
 	int n = A.num_rows; 
-	float * fuck; 
 	Matrix temp = allocate_matrix(MATRIX_SIZE, MATRIX_SIZE, 0);
-	
+
+//Copy A because it is read only 
 #pragma omp parallel for collapse(2) default(shared) private(j,i) 
 	for (i = 0; i < n; i ++)             /* Copy the contents of the A matrix into the U matrix. */
         for(j = 0; j < n; j++)
             temp.elements[n * i + j] = A.elements[n * i + j];
 
-
+//Everything is calculated based on values in read only matrix, so no dependancies between elimation and division steps 
 	for (k = 0; k < n; k++){  
 		#pragma omp parallel for collapse(2) default(shared) private(j,i)  
         for (i = (k); i < n; i ++){ 
@@ -109,29 +109,20 @@ int gauss_eliminate_using_openmp(Matrix A, Matrix U)                  /* Write c
 						k = j = n;//break;
 		 			}
 					U.elements[n * k + j] = (float)(temp.elements[n * k + j] / temp.elements[n * k + k]);
-					//if (k!=0){
-					//	U.elements[n*(k-1)+j]=temp.elements[n*(k-1)+j];
-					//	U.elements[n*j+(k-1)]=temp.elements[n*j+(k-1)];
-		 			//}
 				}else {
 					U.elements[n * i + j] = temp.elements[n * i + j] -\
                 		(temp.elements[n * i + k] * (float)(temp.elements[n * k + j] / temp.elements[n * k + k]));
 		   	 	}
  		  	}
  		 } 
-		//U.elements[n*k+k]=1; 
-		#pragma omp barrier //synch all the stuff after each section
-		//ping pong 
+		
+		//implicit synchronization after for loop 
+		//ping pong dat shit 
 		if (k!=n-1) // dont swap last one
 		{  
-		//fuck=temp.elements; 
-		//temp.elements=U.elements; 
-		//U.elements=fuck; 
 		#pragma omp parallel for private(j)	
-			for(j = 0; j < n*n; j++){
+			for(j = 0; j < n*n; j++)
 				temp.elements[j] = U.elements[j];
-			//	temp.elements[n * j + k] = U.elements[n * j + k]; 
- 			}
 		}
  	}
 return 0; 
