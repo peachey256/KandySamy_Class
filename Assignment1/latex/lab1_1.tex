@@ -1,5 +1,4 @@
 \documentclass[12pt]{article}
-\renewcommand{\baselinestretch}{1.5}
 \usepackage[utf8]{inputenc}
 
 \usepackage{hyperref}
@@ -20,13 +19,21 @@
 \author{Sarah Peachey \& Nathan Schomer}
 \maketitle
 
-\textbf{\textit{Abstract:}} Write some words about openMP
+\textbf{\textit{Abstract:}} OpenMP is a general parallelization pragma. To
+implement the parallel functionality, just identify a parallel section and
+OpenMP will spawn a set of threads to run the code in parallel. If a
+parallel for loop is created then it will chunk the for loop into several
+pieces, and give each thread a chunk to run. The for loop has an implicit
+barrier synchronization at the bottom of the loop, so threads will wait here
+before moving onto the next line of code. OpenMP also has a built in to
+critical sections and will serialize that section, so that multiple threads
+won't try to write to some critical variable in shared memory. 
 
 \newpage
 
 \section{Histogram\label{histo}}
 \qquad The histogram code generates an n length vector and then sorts all
-the data into a histogram with 500 bins. In the multi-threaded aprroach each
+the data into a histogram with 500 bins. In the multi-threaded approach each
 thread is assigned a chunk of data to sort. This chunk of data is statically
 assigned so they sort equal sized chunks. Each thread keeps a local copy of
 the histogram containing the data that it sorted. Then after each thread
@@ -34,7 +41,7 @@ sorts its own chunk of data it reaches a critical section in which the
 histogram in shared memory is incremented with the values in the local
 histograms. As seen in the below table peak performance is reached with 8
 threads, performance is not improved with 16 threads because of the overhead
-associated with spawning more threads. Then an explanation in psuedo-code of
+associated with spawning more threads. Then an explanation in pseudo-code of
 how the parallel code is structured follows the table.  
 
 \begin{center}
