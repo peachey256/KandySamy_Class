@@ -15,33 +15,100 @@
 
 \begin{document}
 
-\title{Parallel Processing Lab 1: OpenMP}
+\title{Parallel Processing Lab 1: OpenMP \\ Guassian Elimination}
 \author{Sarah Peachey \& Nathan Schomer}
 \maketitle
 
-\textbf{\textit{Abstract:}} Write some words about openMP
+%\textbf{\textit{Abstract:}} Write some words about openMP
 
 \newpage
 
-\section{Guassian Elimination\label{guass}}
-\qquad words 
+\vspace{-1.5cm}
+\section{Design}
+\vspace{-0.25cm}
+The Gaussian elimination function was initially parallelized
+by adding OpenMP directives before the first set of for loops
+and two of the nested for loops. However, these changes did not
+yield any improvement in run time. Next, the algorithm was
+implemented using a "ping pong" method as described by Dr. Kandasamy
+during lecture. Using this method, the dependencies between the
+elimination and division steps were removed since all calculations
+are based on values stored in a read-only matrix. These changes
+provided better performance over the original method. Pseudocode for
+the "ping pong" method is shown on the next page.
 
+\vspace{-0.6cm}
+\section{Results}
+\vspace{-0.4cm}
+\qquad Algorithm run time is dependent on the number
+of threads and current computer workload.
+This is evident from the speed-up values shown 
+in the table. Speed up was calculated using Equation 1. 
+Values for "Auto" threads were determined
+during the Eagles parade when the workload on the Xunil server were
+much lower. Currently running processes were monitored using "top".
+The remaining values were collected later when many more 
+processes were running on Xunil.
+The most speed up was achieved when OpenMP determined
+the number of threads. Otherwise, the parallel version was generally
+slower than the serial algorithm. As expected, the slowdown was
+greater with a lower number of threads since the overhead incurred by
+OpenMP was greater than the additional work throughput gained by
+additional threads. 
+
+
+
+\begin{equation}
+    s = \frac{t_{serial}}{t_{parallel}}
+\end{equation}
+
+\pagebreak
 \begin{center}
 \hspace*{-2.5cm}
-\begin{tabular}{@{}|c|c|c|c|}
+\begin{tabular}{@{}|c|c|c|c|c|}
 \hline
-Threads & 1 million items & 10 million items & 100 million items \\
-\hline 
-2 & 1.40 & 1.29 & 1.10 \\
+Thread Count & 1024x1024 & 2048x2048 & 4096x4096 & 8192x8192 \\
+
 \hline
-4 & 2.33 & 2.35 & 2.44 \\
+Auto & 1.46 & 1.24 & 1.08 & 1.08 \\
 \hline
-8 & 3.00 & 4.17 & 4.42 \\
+2 & 0.31 & 0.27 & 0.29 & 0.31 \\
+\hline
+4 & 0.55 & 0.52 & 0.41 & 0.55 \\
+\hline
+8 & 0.63 & 0.89 & 0.87 & 0.89 \\
 \hline 
-16 & 2.50 & 4.15 & 3.56 \\
-\hline 
+16 & 1.20 & 0.89 & 0.85 & 0.90 \\
+\hline
 \end{tabular}
 \hspace*{-2.5cm}
 \end{center}
+
+\vspace{1cm}
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwResult{Ping Pong Gaussian Elimination}
+initialization\;
+
+\For{each row in temp\_array}{
+    OMP Directive\;
+    \For{each element temp\_array}{
+        \If{first row}{
+            Perform Division Step
+        } 
+
+        \Else{
+            Perform Elimination Step
+        }
+    }
+    \If{Not last Iteration}{
+        OMP Directive\;
+        copy U\_array to temp\_array
+    }
+}
+\end{algorithm}
+
+%\pagebreak
+
 
 \end{document}
