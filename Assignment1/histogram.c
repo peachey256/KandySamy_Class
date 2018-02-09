@@ -60,7 +60,7 @@ void run_test(int num_elements)
 	compute_gold(input_data, reference_histogram, num_elements, HISTOGRAM_SIZE);
 
 	gettimeofday(&stop, NULL);
-	printf("CPU run time = %0.2f s. \n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
+	printf("CPU run time = :%0.3f s. \n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
 	// check_histogram(reference_histogram, num_elements, HISTOGRAM_SIZE);
 	
 	// Compute the histogram using openmp. The result histogram should be stored on the histogram_using_openmp array
@@ -71,7 +71,7 @@ void run_test(int num_elements)
 	compute_using_openmp(input_data, histogram_using_openmp, num_elements, HISTOGRAM_SIZE);
 	
 	gettimeofday(&stop, NULL);
-	printf("CPU run time = %0.2f s. \n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
+	printf("CPU run time = %0.3f s. \n", (float)(stop.tv_sec - start.tv_sec + (stop.tv_usec - start.tv_usec)/(float)1000000));
 	// check_histogram(histogram_using_openmp, num_elements, HISTOGRAM_SIZE);
 
 	// Compute the differences between the reference and pthread results
@@ -106,7 +106,7 @@ void compute_gold(int *input_data, int *histogram, int num_elements, int histogr
 void compute_using_openmp(int *input_data, int *histogram, int num_elements, int histogram_size)
 {
 	int i;
-	int num_threads =10; 
+	int num_threads =16; 
 	// Initialize histogram
 	#pragma omp parallel for \
 		private(i) shared(histogram_size, histogram) num_threads(num_threads)
