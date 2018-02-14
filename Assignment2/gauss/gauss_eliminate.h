@@ -19,5 +19,11 @@ typedef struct {
 } Matrix;
 
 
+typedef struct{
+	float* U; //gonna have the actual copy 
+	float* elements; // and the temporary
+}TwoMat
+
+
 #endif // _MATRIXMUL_H_
 

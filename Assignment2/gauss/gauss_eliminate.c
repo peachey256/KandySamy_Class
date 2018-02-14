@@ -103,47 +103,72 @@ main (int argc, char **argv)
     return 0;
 }
 
-void *parallel_gold(void* U){
-	/* put the parallel code here*/
+void *parallel_gold(void* Matrices_ptr){
+	/*Get the stuff from the struct*/
+	TwoMat Matrices = *((TwoMat *)Matrices_ptr); 
+	float * U = Matrices.U; //U.elements
+	float * temp = Matrices.temp; //temp.elements
+	int k = Matrices.k; 
 	int tid=pthread_self();
   /* do the section of the for loop here */ 
 	/* gonna needs to make a copy everytime or figure out how to pass it in. */ 
 	
-	int n = MATRIX_SIZE/tid; 
+	int n = MATRIX_SIZE/Matrices.num_threads; 
+	/*All the examples are evenly divisiable*/ 
 	for(i=tid*n; i<(tid+1)*n; i++)
 		for(j=0; j<MATRIX_SIZE; j++){
 			if(i==k)
 			{//Division 
-				if (temp.elements[n *k + k] == 0){
+				if (U[n *k + k] == 0){
 					printf("Numerical instability detected. The principal
 							diagonal element is zero. \n");
 					k = j = n;
 				}
-				U.elements[n * k + j] = (float)(temp.elements[n * k + j] / temp.elements[n * k + k]);
+				temp[n * k + j] = (float)(U[n * k + j] / U[n * k + k]);
 			}else{
 			//Elimination
-			   U.elements[n * i + j] = temp.elements[n * i + j] -\
-					temp.elements[n * i + k] * (float)(temp.elements[n * k + j] /temp.elements[n * k + k]));
+			   temp[n * i + j] = U[n * i + j] -\
+					(U[n * i + k] * (float)(U[n * k + j] /U[n * k + k]));
 			}
 	}
 }
+
 
 /* Write code to perform gaussian elimination using pthreads. */
 void
 gauss_eliminate_using_pthreads (Matrix U)
 {
+	
 	/* malloc the threads */
 	pthread_t* thread_handles; 
 	thread_count=4;
  	thread_handles=malloc(thread_count*sizeof(pthread_t));
-	for(k=0; k<MARIX_SIZE; k++){
+	/*make the structure to pass to the threads*/
+	temp = allocate_matrix (MATRIX_SIZE, MATRIX_SIZE, 0);	
+	TwoMat Matrices; 
+	Matrices.U=U.elements; 
+	Matrices.temp=temp.elements;
+  	Matrices.num_threads=thread_count; 
+	float * fuck; 	
+	for(k=0; k<MATRIX_SIZE; k++){
 		/*Spawn of threads into a reference function*/
 		for(thread =0; thread < thread_count; thread++) 
-			pthread_create(&thread_handles[thread], NULL, parallel_gold, &U); 
+			pthread_create(&thread_handles[thread], NULL, parallel_gold, (void *)&Matrices); 
+		
 		/*Join the threads*/
 		for(thread=0; thread<thread_count; thread++)
 			pthread_join(thread_handles[thread], NULL); 
+	
+		
+		for(j=k; j<MATRIX_SIZE; j++){
+			Matrices.U[MATRIX_SIZE*k+j]=Matrices.temp[MATRIX_SIZE*k+j];
+			Matrices.U[MATRIX_SIZE*j+k]=Matrices.temp[MATRIX_SIZE*j+k];	
+		}
+		fuck = Matrices.U;  
+		Matrices.U=Matrices.temp; 
+		Matrices.temp=fuck;  
 	}
+	free(temp); 
 }
 
 
