@@ -1,7 +1,7 @@
 #ifndef _MATRIXMUL_H_
 #define _MATRIXMUL_H_
 
-#define MATRIX_SIZE 2048
+#define MATRIX_SIZE 1024 //2048
 
 // Matrix dimensions
 #define NUM_COLUMNS MATRIX_SIZE // Number of columns in Matrix A
@@ -9,6 +9,7 @@
 
 // Matrix Structure declaration
 typedef struct {
+
     unsigned int num_columns;   // Width of the matrix 
     unsigned int num_rows;      // Height of the matrix
 	/* Number of elements between the beginnings of adjacent rows in the 
@@ -21,8 +22,13 @@ typedef struct {
 
 typedef struct{
 	float* U; //gonna have the actual copy 
-	float* elements; // and the temporary
-}TwoMat
+	float* temp; // and the temporary
+	int k;
+	int tid; 
+	float * a; 
+	float * b; 
+	int num_threads; 
+}TwoMat; 
 
 
 #endif // _MATRIXMUL_H_
