@@ -95,6 +95,9 @@ main (int argc, char **argv)
             (float) (stop.tv_sec - start.tv_sec +
                 (stop.tv_usec - start.tv_usec) / (float) 1000000));
 
+	//for(int i=0; i<MATRIX_SIZE*MATRIX_SIZE; i++) 
+	//	printf("(%f, %f)\n",U_mt.elements[i], U_reference.elements[i]); 
+
     /* check if the pthread result matches the reference solution within a specified tolerance. */
     int size = MATRIX_SIZE * MATRIX_SIZE;
     int res = check_results (U_reference.elements, U_mt.elements, size, 0.0001f);
@@ -112,58 +115,53 @@ main (int argc, char **argv)
 void 
 *parallel_gold(void* Matrices_ptr)
 {/*Get the stuff from the struct*/
-	TwoMat * Matrices = (TwoMat *)Matrices_ptr; 
+	TwoMat *Matrices = (TwoMat *)Matrices_ptr; 
 	float * U = Matrices->U; //U.elements
-	float * temp = Matrices->temp; //temp.elements
 	int k, i, j; 	
 	int n = MATRIX_SIZE;
 	float * fuck; 	
 	pthread_mutex_t barrier_mutex; //assume starts unlocked
 	/*All the examples are evenly divisiable*/ 
-	for(k=0; k<n; k++){
-		/*change the limits [a,b]*/
-		if(Matrices->a[Matrices->tid] < k)
-			Matrices->a[Matrices->tid]=k; 
-		for(i=Matrices->a[Matrices->tid]; i<Matrices->b[Matrices->tid]; i++)
- 			 for(j=k; j<n; j++){
-				if(i==k)
- 				 {//Division 
-					if (U[n *k + k] == 0){
-						printf("Numerical instability detected. The principal diagonal element is zero. \n");
-						k = i = j = n;
- 			 		} 
-					temp[n * k + j] = (float)(U[n * k + j] / U[n * k + k]);
-				}else{
-				//Elimination
-				   temp[n * i + j] = U[n * i + j] -\
-						(U[n * i + k] * (float)(U[n * k + j] /U[n * k + k]));
-				}
-		 } 
-		/*Barrier here*/
-		pthread_mutex_lock(&barrier_mutex); 
-		counter++; 
-		pthread_mutex_unlock(&barrier_mutex);
-		while(counter<Matrices->num_threads); //spin till all threads catch up 
- 		if(Matrices->tid==0){
-			pthread_mutex_lock(&barrier_mutex);
-			counter=0; 
-			pthread_mutex_unlock(&barrier_mutex);
-			}
-		for(i=Matrices->a[Matrices->tid]; i<Matrices->b[Matrices->tid]; i++)
-			for(j=0; j<n; j++)
-				U[n * i + j]=temp[n * i +j]; 
-			
-		/*Barrier here*/
-		pthread_mutex_lock(&barrier_mutex); 
-		counter++; 
-		pthread_mutex_unlock(&barrier_mutex);
-		while(counter<Matrices->num_threads); //spin till all threads catch up 
- 		if(Matrices->tid==0){ 
-			pthread_mutex_lock(&barrier_mutex);
-			counter=0; 
-			pthread_mutex_unlock(&barrier_mutex);
-			}
+	for  (k = 0; k  < n; k++){
+		printf("Thread: %d, on range %d -> %d\n",Matrices->tid, Matrices->a, Matrices->b);
+		//if(Matrices->a[Matrices->tid] < k)
+		//	Matrices->a[Matrices->tid]=k; 
+		 for(j=Matrices->a; j<Matrices->b; j++){
+			 if (U[n  * k + k] == 0){
+	      		printf ("Numerical instability. The principal diagonal element is zero. \n");
+          		return 0;
+            	}
+            U[n * k + j] = (float) (U[n * k + j] / U[n * k + k]);	// Division step
 		}
+        U[n * k + k] = 1;	// Set the principal diagonal entry in U to be 1 
+        pthread_mutex_lock(&barrier_mutex); 
+		counter++; 
+		pthread_mutex_unlock(&barrier_mutex);
+		printf("thread: %d\n",Matrices->tid);
+		while(counter<Matrices->num_threads); //spin till all threads catch up 
+ 		printf("Division completed for k=%d\n",k);
+		if(Matrices->tid==0){
+			pthread_mutex_lock(&barrier_mutex);
+			counter=0; 
+			pthread_mutex_unlock(&barrier_mutex);
+			}
+		if(Matrices->a < k+1)
+			Matrices->a=k+1;
+		for(i=Matrices->a; i<Matrices->b; i++){
+ 			 for(j=k+1; j<n; j++)
+                U[n * i + j] = U[n * i + j] - (U[n * i + k] * U[n * k + j]);	// Elimination step
+            U[n * i + k] = 0;
+        }
+		pthread_mutex_lock(&barrier_mutex); 
+		counter++; 
+		pthread_mutex_unlock(&barrier_mutex);
+		while(counter<Matrices->num_threads); //spin till all threads catch up 
+ 		if(Matrices->tid==0){  
+			pthread_mutex_lock(&barrier_mutex);
+			counter=0; 
+			pthread_mutex_unlock(&barrier_mutex);
+			}
+    }
 	Matrices->U=U; 
 }  
 
@@ -178,36 +176,24 @@ gauss_eliminate_using_pthreads (Matrix U)
 	int thread_count=4;
  	thread_handles=malloc(thread_count*sizeof(pthread_t));
 	/*make the structure to pass to the threads*/
-	Matrix temp = allocate_matrix (MATRIX_SIZE, MATRIX_SIZE, 0);	
-	TwoMat Matrices; 
-	Matrices.U=U.elements; 
-	Matrices.temp=temp.elements;
-  	Matrices.num_threads=thread_count; 
+    TwoMat * Matrices=malloc(thread_count*sizeof(TwoMat)); 
 	int n = MATRIX_SIZE/thread_count; 
-	Matrices.a=malloc(sizeof(float)*thread_count); 
-	Matrices.b=malloc(sizeof(float)*thread_count);
-	int j, thread; 
-	for(j=0; j<thread_count; j++){
-		Matrices.a[j]=j*n; 
-		Matrices.b[j]=((j+1)*n); 
-		Matrices.tid=j;
- 	} 
+	int thread; 
 	/*Spawn of threads into a reference function*/
-	for(thread =0; thread < thread_count; thread++){  
-		pthread_create(&thread_handles[thread], NULL, parallel_gold, (void *)&Matrices); 
-	}
-	/*being lazy, should to synch technique instead of spawn and join everytime*/
+	for(thread =0; thread<thread_count; thread++){  
+		Matrices[thread].U=U.elements;
+		Matrices[thread].num_threads=thread_count;
+		Matrices[thread].a=thread*n;
+		Matrices[thread].b=thread*n+n;
+		Matrices[thread].tid=thread; 
+		pthread_create(&thread_handles[thread], NULL, parallel_gold, (void *)&Matrices[thread]); 
+	}  
 	/*Join the threads*/
 	for(thread=0; thread<thread_count; thread++)
 		pthread_join(thread_handles[thread], NULL); 
 
-	/*for(j=k; j<MATRIX_SIZE; j++){ 
-		Matrices.U[MATRIX_SIZE*k+j]=Matrices.temp[MATRIX_SIZE*k+j];
-		Matrices.U[MATRIX_SIZE*j+k]=Matrices.temp[MATRIX_SIZE*j+k];	
-	}*/
-	free(temp.elements); 
-	free(Matrices.a); 
-	free(Matrices.b); 
+	free(thread_handles); 
+	free(Matrices); 
 } 
 
 
@@ -245,7 +231,7 @@ allocate_matrix (int num_rows, int num_columns, int init)
     }
   
     return M;
-}
+} 
 
 
 /* Returns a random floating-point number between the specified min and max values. */ 

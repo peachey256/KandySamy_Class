@@ -92,19 +92,19 @@ int gauss_eliminate_using_openmp(Matrix A, Matrix U)                  /* Write c
 	Matrix temp = allocate_matrix(MATRIX_SIZE, MATRIX_SIZE, 0);
 
 //Copy A because it is read only 
-#pragma omp parallel for collapse(2) default(shared) private(j,i) 
+#pragma omp parallel for collapse(2) default(shared) private(j,i)  
 	for (i = 0; i < n; i ++)             /* Copy the contents of the A matrix into the U matrix. */
         for(j = 0; j < n; j++)
             temp.elements[n * i + j] = A.elements[n * i + j];
 
 //Everything is calculated based on values in read only matrix, so no dependancies between elimation and division steps 
-	for (k = 0; k < n; k++){  
-		#pragma omp parallel for collapse(2) default(shared) private(j,i)  
-        for (i = (k); i < n; i ++){ 
-			for (j = (k); j < n ; j++){   /* Elimnation step. */
-				if(i==k)
- 				{ // Division step. 
- 			 		if (temp.elements[n *k + k] == 0){ 
+	for (k = 0; k < n; k++){   
+		#pragma omp parallel for collapse(2) default(shared) private(j,i) 
+        for (i = (k); i < n; i ++){  
+			for (j = (k); j < n ; j++ ){   /* Elimnation step. */
+				if(i==k) 
+ 				{ // Divi sion step. 
+ 			 		if (temp.elements[n *k + k] == 0){  
 						printf("Numerical instability detected. The principal diagonal element is zero. \n");
 						k = j = n;//break;
 		 			}
@@ -114,7 +114,7 @@ int gauss_eliminate_using_openmp(Matrix A, Matrix U)                  /* Write c
                 		(temp.elements[n * i + k] * (float)(temp.elements[n * k + j] / temp.elements[n * k + k]));
 		   	 	}
  		  	}
- 		 } 
+ 	 	 } 
 		
 		//implicit synchronization after for loop 
 		//ping pong dat shit 
@@ -123,8 +123,8 @@ int gauss_eliminate_using_openmp(Matrix A, Matrix U)                  /* Write c
 		#pragma omp parallel for private(j)	
 			for(j = 0; j < n*n; j++)
 				temp.elements[j] = U.elements[j];
-		}
- 	}
+		} 
+ 	} 
 return 0; 
 } 
 
