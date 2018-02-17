@@ -23,7 +23,6 @@ typedef struct {
 typedef struct{
 	float* U; //gonna have the actual copy 
 	float* temp; // and the temporary
-	int k;
 	int tid; 
 	float * a; 
 	float * b; 

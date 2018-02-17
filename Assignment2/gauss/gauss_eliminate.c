@@ -12,6 +12,7 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+#include <semaphore.h> 
 #include "gauss_eliminate.h"
 
 #define MIN_NUMBER 2
@@ -25,7 +26,7 @@ int perform_simple_check (const Matrix);
 void print_matrix (const Matrix);
 float get_random_number (int, int);
 int check_results (float *, float *, unsigned int, float);
-
+int counter =0; 
 
 int
 main (int argc, char **argv)
@@ -90,7 +91,7 @@ main (int argc, char **argv)
 	gauss_eliminate_using_pthreads (U_mt);
 	gettimeofday (&stop, NULL);
 
-  	printf ("CPU run time = %0.2f s. \n",
+  	printf ("Multi-Threaded CPU run time = %0.2f s. \n",
             (float) (stop.tv_sec - start.tv_sec +
                 (stop.tv_usec - start.tv_usec) / (float) 1000000));
 
@@ -111,35 +112,66 @@ main (int argc, char **argv)
 void 
 *parallel_gold(void* Matrices_ptr)
 {/*Get the stuff from the struct*/
-	TwoMat Matrices = *((TwoMat *)Matrices_ptr); 
-	float * U = Matrices.U; //U.elements
-	float * temp = Matrices.temp; //temp.elements
-	int k = Matrices.k; 
-	int i, j; 	
-	int n = MATRIX_SIZE/Matrices.num_threads; 
+	TwoMat * Matrices = (TwoMat *)Matrices_ptr; 
+	float * U = Matrices->U; //U.elements
+	float * temp = Matrices->temp; //temp.elements
+	int k, i, j; 	
+	int n = MATRIX_SIZE;
+	float * fuck; 	
+	pthread_mutex_t barrier_mutex; //assume starts unlocked
 	/*All the examples are evenly divisiable*/ 
-	for(i=Matrices.a[Matrices.tid]; i<Matrices.b[Matrices.tid]; i++)
-		for(j=0; j<MATRIX_SIZE; j++){
-			if(i==k)
-			{//Division 
-				if (U[n *k + k] == 0){
-					printf("Numerical instability detected. The principal diagonal element is zero. \n");
-					k = j = n;
-	 			}
-				temp[n * k + j] = (float)(U[n * k + j] / U[n * k + k]);
-			}else{
-			//Elimination
-			   temp[n * i + j] = U[n * i + j] -\
-					(U[n * i + k] * (float)(U[n * k + j] /U[n * k + k]));
-	 		}
-	 }
-}
+	for(k=0; k<n; k++){
+		/*change the limits [a,b]*/
+		if(Matrices->a[Matrices->tid] < k)
+			Matrices->a[Matrices->tid]=k; 
+		for(i=Matrices->a[Matrices->tid]; i<Matrices->b[Matrices->tid]; i++)
+ 			 for(j=k; j<n; j++){
+				if(i==k)
+ 				 {//Division 
+					if (U[n *k + k] == 0){
+						printf("Numerical instability detected. The principal diagonal element is zero. \n");
+						k = i = j = n;
+ 			 		} 
+					temp[n * k + j] = (float)(U[n * k + j] / U[n * k + k]);
+				}else{
+				//Elimination
+				   temp[n * i + j] = U[n * i + j] -\
+						(U[n * i + k] * (float)(U[n * k + j] /U[n * k + k]));
+				}
+		 } 
+		/*Barrier here*/
+		pthread_mutex_lock(&barrier_mutex); 
+		counter++; 
+		pthread_mutex_unlock(&barrier_mutex);
+		while(counter<Matrices->num_threads); //spin till all threads catch up 
+ 		if(Matrices->tid==0){
+			pthread_mutex_lock(&barrier_mutex);
+			counter=0; 
+			pthread_mutex_unlock(&barrier_mutex);
+			}
+		for(i=Matrices->a[Matrices->tid]; i<Matrices->b[Matrices->tid]; i++)
+			for(j=0; j<n; j++)
+				U[n * i + j]=temp[n * i +j]; 
+			
+		/*Barrier here*/
+		pthread_mutex_lock(&barrier_mutex); 
+		counter++; 
+		pthread_mutex_unlock(&barrier_mutex);
+		while(counter<Matrices->num_threads); //spin till all threads catch up 
+ 		if(Matrices->tid==0){ 
+			pthread_mutex_lock(&barrier_mutex);
+			counter=0; 
+			pthread_mutex_unlock(&barrier_mutex);
+			}
+		}
+	Matrices->U=U; 
+}  
 
 
 /* Write code to perform gaussian elimination using pthreads. */
 void
 gauss_eliminate_using_pthreads (Matrix U)
-{
+{ 
 	
 	/* malloc the threads */
 	pthread_t* thread_handles; 
@@ -154,35 +186,25 @@ gauss_eliminate_using_pthreads (Matrix U)
 	int n = MATRIX_SIZE/thread_count; 
 	Matrices.a=malloc(sizeof(float)*thread_count); 
 	Matrices.b=malloc(sizeof(float)*thread_count);
-	int k, j, thread; 
+	int j, thread; 
 	for(j=0; j<thread_count; j++){
 		Matrices.a[j]=j*n; 
-		Matrices.b[j]=((j+1)*n)-1; 
-		Matrices.tid=j; 
-	}
-	float * fuck; 	
-	 for(k=0; k<MATRIX_SIZE; k++){
-		Matrices.k=k; 
-		/*Spawn of threads into a reference function*/
-		for(thread =0; thread < thread_count; thread++){ 
-			pthread_create(&thread_handles[thread], NULL, parallel_gold, (void *)&Matrices); 
-		}
-		/*being lazy, should to synch technique instead of spawn and join everytime*/
-		/*Join the threads*/
-		for(thread=0; thread<thread_count; thread++)
-			pthread_join(thread_handles[thread], NULL); 
-	
-		for(j=k; j<MATRIX_SIZE; j++){ 
-			Matrices.U[MATRIX_SIZE*k+j]=Matrices.temp[MATRIX_SIZE*k+j];
-			Matrices.U[MATRIX_SIZE*j+k]=Matrices.temp[MATRIX_SIZE*j+k];	
-		}
-		/*for(j=0; j<MATRIX_SIZE*MATRIX_SIZE; j++) 
-			printf("%0.2f",temp.elements[j]);
-		printf("\n");*/ 
-		fuck = Matrices.U;  
-		Matrices.U=Matrices.temp; 
-		Matrices.temp=fuck;  
+		Matrices.b[j]=((j+1)*n); 
+		Matrices.tid=j;
  	} 
+	/*Spawn of threads into a reference function*/
+	for(thread =0; thread < thread_count; thread++){  
+		pthread_create(&thread_handles[thread], NULL, parallel_gold, (void *)&Matrices); 
+	}
+	/*being lazy, should to synch technique instead of spawn and join everytime*/
+	/*Join the threads*/
+	for(thread=0; thread<thread_count; thread++)
+		pthread_join(thread_handles[thread], NULL); 
+
+	/*for(j=k; j<MATRIX_SIZE; j++){ 
+		Matrices.U[MATRIX_SIZE*k+j]=Matrices.temp[MATRIX_SIZE*k+j];
+		Matrices.U[MATRIX_SIZE*j+k]=Matrices.temp[MATRIX_SIZE*j+k];	
+	}*/
 	free(temp.elements); 
 	free(Matrices.a); 
 	free(Matrices.b); 
@@ -194,7 +216,6 @@ int
 check_results (float *A, float *B, unsigned int size, float tolerance)
 {
     for (int i = 0; i < size; i++){
-        printf("%0.2f, %0.2f \n", A[i], B[i]);
 		if (fabsf (A[i] - B[i]) > tolerance)
             return 0;
 	}
