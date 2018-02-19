@@ -1,7 +1,7 @@
 #ifndef _MATRIXMUL_H_
 #define _MATRIXMUL_H_
 
-#define MATRIX_SIZE 1024 
+#define MATRIX_SIZE 4//1024 
 //#define MATRIX_SIZE 2048
 //#define MATRIX_SIZE 4096
 

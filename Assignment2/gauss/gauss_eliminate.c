@@ -28,10 +28,12 @@ float get_random_number (int, int);
 int check_results (float *, float *, unsigned int, float);
 int counter1 =0; 
 int counter2=0; 
+int counter3=0; 
+pthread_mutex_t barrier_mutex;
 
 int
 main (int argc, char **argv)
-{
+{  
     /* Check command line arguments. */
     if (argc > 1){
         printf ("Error. This program accepts no arguments. \n");
@@ -71,7 +73,7 @@ main (int argc, char **argv)
     printf ("CPU run time = %0.2f s. \n",x1); 
 
   
-    if (status == 0){
+     if (status == 0){
         printf("Failed to convert given matrix to upper triangular. Try again. Exiting. \n");
         exit (0);
     } 
@@ -96,10 +98,14 @@ main (int argc, char **argv)
 	printf("Speedup=%f\n", x1/x2);
     /* check if the pthread result matches the reference solution within a specified tolerance. */
     int size = MATRIX_SIZE * MATRIX_SIZE;
-    int res = check_results (U_reference.elements, U_mt.elements, size, 0.0001f);
-    printf ("Test %s\n", (1 == res) ? "PASSED" : "FAILED");
+    
+	for(int i=0; i<MATRIX_SIZE*MATRIX_SIZE; i++) 
+		printf("%f, %f, %f\n",A.elements[i],U_reference.elements[i], U_mt.elements[i]); 
 
-  
+	
+	int res = check_results (U_reference.elements, U_mt.elements, size, 0.0001f);
+    printf ("Test %s\n", (1 == res) ? "PASSED" : "FAILED");
+	  
     /* Free memory allocated for the matrices. */
     free (A.elements);
     free (U_reference.elements);
@@ -114,51 +120,65 @@ void
 	TwoMat *Matrices = (TwoMat *)Matrices_ptr; 
 	int k, i, j; 	
 	int n = MATRIX_SIZE;
-	float * fuck; 	
-	pthread_mutex_t barrier1_mutex;
-	pthread_mutex_t barrier2_mutex;//assume starts unlocked
-	int ret1=pthread_mutex_init(&barrier1_mutex, NULL); 
-	int ret2=pthread_mutex_init(&barrier2_mutex, NULL);
-	
 	/*All the examples are evenly divisiable*/ 
 	for  (k = 0; k  < n; k++){
 		printf("k=%d for thread %d\n",k, Matrices->tid); 
 		if(Matrices->a < k+1)
 			Matrices->a=k+1;
+				//division 
 		 for(j=Matrices->a; j<Matrices->b; j++){
 			 if (Matrices->U[n  * k + k] == 0){
 	      		printf ("Numerical instability. The principal diagonal element is zero. \n");
           		return 0;
-            	}
+             	}
             Matrices->U[n * k + j] = (float) (Matrices->U[n * k + j] / Matrices->U[n * k + k]);	// Division step
-		}
-      	pthread_mutex_lock(&barrier1_mutex); 
+		} 
+		//barrier 
+      	pthread_mutex_lock(&barrier_mutex); 
 		counter1++; 
-		pthread_mutex_unlock(&barrier1_mutex);
+		pthread_mutex_unlock(&barrier_mutex);
 		while(counter1<Matrices->num_threads); //spin till all threads catch up 
 		printf("Thread %d completed division\n",Matrices->tid);
-		if(Matrices->tid==0){
-			pthread_mutex_lock(&barrier1_mutex);
-			counter1=0; 
-			pthread_mutex_unlock(&barrier1_mutex);
-			}
-        Matrices->U[n * k + k] = 1;	// Set the principal diagonal entry in U to be 1 
+		// Set the principal diagonal entry in U to be 1 
+        Matrices->U[n * k + k] = 1;	
+		//elimination 
 		for(i=Matrices->a; i<Matrices->b; i++){
  			 for(j=k+1; j<n; j++)
                 Matrices->U[n * i + j] = Matrices->U[n * i + j] - (Matrices->U[n * i + k] * Matrices->U[n * k + j]);	// Elimination step
-            Matrices->U[n * i + k] = 0;
         }
-		pthread_mutex_lock(&barrier2_mutex); 
+		//reset this one in here 
+		pthread_mutex_lock(&barrier_mutex); 
+		if(counter3==Matrices->num_threads)
+			counter3==0; 
+		pthread_mutex_unlock(&barrier_mutex); 
+
+		//barrier
+		pthread_mutex_lock(&barrier_mutex); 
 		counter2++; 
-		pthread_mutex_unlock(&barrier2_mutex);
-		printf("Thread %d completed Elimination\n",Matrices->tid);
+		pthread_mutex_unlock(&barrier_mutex);
+		
 		while(counter2<Matrices->num_threads); //spin till all threads catch up 
-		if(Matrices->tid==0){  
-			pthread_mutex_lock(&barrier2_mutex);
-			counter2=0; 
-			pthread_mutex_unlock(&barrier2_mutex);
+		printf("Thread %d completed Elimination\n",Matrices->tid);
+		//make dose zero 
+		for (i=Matrices->a; i<Matrices->b; i++)
+			Matrices->U[n * i + k] = 0;
+		
+		//reset the counters 
+		pthread_mutex_lock(&barrier_mutex); 
+		if(counter1==Matrices->num_threads)
+			counter1==0; 
+		pthread_mutex_unlock(&barrier_mutex); 
+		pthread_mutex_lock(&barrier_mutex); 
+		if(counter2==Matrices->num_threads)
+			counter2==0; 
+		pthread_mutex_unlock(&barrier_mutex); 
+
+		//synch at the end cause why the hell not. 
+		pthread_mutex_lock(&barrier_mutex); 
+		counter3++; 
+		pthread_mutex_unlock(&barrier_mutex);
+		while(counter3<Matrices->num_threads); //spin till all threads catch up 
 			}
-    }
 }  
 
 
@@ -173,6 +193,7 @@ gauss_eliminate_using_pthreads (Matrix U)
  	thread_handles=malloc(thread_count*sizeof(pthread_t));
 	/*make the structure to pass to the threads*/
     TwoMat * Matrices=malloc(thread_count*sizeof(TwoMat)); 
+	pthread_mutex_init(&barrier_mutex, NULL);
 	int n = MATRIX_SIZE/thread_count; 
 	int thread; 
 	/*Spawn of threads into a reference function*/
@@ -180,7 +201,7 @@ gauss_eliminate_using_pthreads (Matrix U)
 		Matrices[thread].U=U.elements;
 		Matrices[thread].num_threads=thread_count;
 		Matrices[thread].a=thread*n;
-		Matrices[thread].b=thread*n+n;
+		Matrices[thread].b=(thread+1)*n;
 		Matrices[thread].tid=thread; 
 		pthread_create(&thread_handles[thread], NULL, parallel_gold, (void *)&Matrices[thread]); 
 	}  
