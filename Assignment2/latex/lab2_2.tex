@@ -1,0 +1,86 @@
+\documentclass[12pt]{article}
+\renewcommand{\baselinestretch}{1.5}
+\usepackage[utf8]{inputenc}
+
+\usepackage{hyperref}
+\hypersetup{linktoc=all}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{algorithm2e}
+\usepackage{graphicx}
+\usepackage{float}
+\graphicspath{ {images/} }
+
+\begin{document}
+
+\title{Parallel Processing Lab 1: OpenMP \\ Guassian Elimination}
+\author{Sarah Peachey \& Nathan Schomer}
+\maketitle
+
+\textbf{\textit{Abstract:}} pthreads is used to paralize an executable function. 
+When the pthread is created it is given a pointer to a function and a structure containing 
+all the information and needed to run that function. The data structure than needs to be 
+dereferenced, and the code can then run over a section of the data. 
+
+\newpage
+
+\vspace{-1.5cm}
+\section{Design}
+\vspace{-0.25cm}
+\qquad words 
+
+\vspace{-0.6cm}
+\section{Results}
+\vspace{-0.4cm}
+\qquad 
+
+
+\begin{equation}
+    s = \frac{t_{serial}}{t_{parallel}}
+\end{equation}
+
+\pagebreak
+\begin{center}
+\hspace*{-2.5cm}
+\begin{tabular}{@{}|c|c|c|c|c|}
+\hline
+Thread Count & 1024x1024 & 2048x2048 & 4096x4096 \\
+\hline
+4 & 2.08 & 2.39 & 2.47 \\
+\hline
+8 & 2.70 & 4.03 & ()  \\
+\hline 
+16 & (2.15) & () & () \\
+\hline 
+32 & () & () & () \\
+\hline
+\end{tabular}
+\hspace*{-2.5cm}
+\end{center}
+
+\vspace{1cm}
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwResult{Function that Performs Gaussian Reduciton}
+initialization\;
+Dereferance the struct; 
+\For{each row in temp\_array}{
+    \For{each element in section of row}
+            Perform Division Step
+	Barrier using a mutex
+	Set principle diagonal to 1 
+     \For{each row in section}
+	 	\For{each item in row} 
+            Perform Elimination Step
+ 	Barrier using a mutex 
+	Make lower triangle 0 
+	Barrier using mutex 
+}
+\end{algorithm}
+
+%\pagebreak
+
+
+\end{document}

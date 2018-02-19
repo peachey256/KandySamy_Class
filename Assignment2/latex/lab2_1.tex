@@ -1,0 +1,79 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+
+\usepackage{hyperref}
+\hypersetup{linktoc=all}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{algorithm2e}
+\usepackage{graphicx}
+\usepackage{float}
+\graphicspath{ {images/} }
+
+
+\begin{document}
+
+\title{Parallel Processing Lab 1: OpenMP}
+\author{Sarah Peachey \& Nathan Schomer}
+\maketitle
+
+\textbf{\textit{Abstract:}} OpenMP is a general parallelization pragma. To
+implement the parallel functionality, just identify a parallel section and
+OpenMP will spawn a set of threads to run the code in parallel. If a
+parallel for loop is created then it will chunk the for loop into several
+pieces, and give each thread a chunk to run. The for loop has an implicit
+barrier synchronization at the bottom of the loop, so threads will wait here
+before moving onto the next line of code. OpenMP also has a built in to
+critical sections and will serialize that section, so that multiple threads
+won't try to write to some critical variable in shared memory. 
+
+\newpage
+
+\section{Histogram\label{histo}}
+\qquad The histogram code generates an n length vector and then sorts all
+the data into a histogram with 500 bins. In the multi-threaded approach each
+thread is assigned a chunk of data to sort. This chunk of data is statically
+assigned so they sort equal sized chunks. Each thread keeps a local copy of
+the histogram containing the data that it sorted. Then after each thread
+sorts its own chunk of data it reaches a critical section in which the
+histogram in shared memory is incremented with the values in the local
+histograms. As seen in the below table peak performance is reached with 8
+threads, performance is not improved with 16 threads because of the overhead
+associated with spawning more threads. Then an explanation in pseudo-code of
+how the parallel code is structured follows the table.  
+
+\begin{center}
+\hspace*{-2.5cm}
+\begin{tabular}{@{}|c|c|c|c|}
+\hline
+Threads & 1 million items & 10 million items & 100 million items \\
+\hline 
+2 & 1.40 & 1.29 & 1.10 \\
+\hline
+4 & 2.33 & 2.35 & 2.44 \\
+\hline
+8 & 3.00 & 4.17 & 4.42 \\
+\hline 
+16 & 2.50 & 4.15 & 3.56 \\
+\hline 
+\end{tabular}
+\hspace*{-2.5cm}
+\end{center}
+
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwResult{Parallel Organization of data into Histogram}
+initialization\;
+creation of threads\; 
+\For{i in amount of data in thread chunk}{
+localHist[array[i]]++\; 
+}
+critical section\; 
+\For{all the bins in the histogram}{
+sharedHist[i]+=localHist[i]\; 
+}
+\end{algorithm}
+
+\end{document}
