@@ -99,9 +99,6 @@ main (int argc, char **argv)
     /* check if the pthread result matches the reference solution within a specified tolerance. */
     int size = MATRIX_SIZE * MATRIX_SIZE;
     
-	for(int i=0; i<MATRIX_SIZE*MATRIX_SIZE; i++) 
-		printf("%f, %f, %f\n",A.elements[i],U_reference.elements[i], U_mt.elements[i]); 
-
 	
 	int res = check_results (U_reference.elements, U_mt.elements, size, 0.0001f);
     printf ("Test %s\n", (1 == res) ? "PASSED" : "FAILED");
@@ -149,7 +146,7 @@ void
 		//reset this one in here 
 		pthread_mutex_lock(&barrier_mutex); 
 		if(counter3==Matrices->num_threads)
-			counter3==0; 
+			counter3=0; 
 		pthread_mutex_unlock(&barrier_mutex); 
 
 		//barrier
@@ -166,11 +163,11 @@ void
 		//reset the counters 
 		pthread_mutex_lock(&barrier_mutex); 
 		if(counter1==Matrices->num_threads)
-			counter1==0; 
+			counter1=0; 
 		pthread_mutex_unlock(&barrier_mutex); 
 		pthread_mutex_lock(&barrier_mutex); 
 		if(counter2==Matrices->num_threads)
-			counter2==0; 
+			counter2=0; 
 		pthread_mutex_unlock(&barrier_mutex); 
 
 		//synch at the end cause why the hell not. 
@@ -189,7 +186,7 @@ gauss_eliminate_using_pthreads (Matrix U)
 	
 	/* malloc the threads */
 	pthread_t* thread_handles; 
-	int thread_count=4;
+	int thread_count=16;
  	thread_handles=malloc(thread_count*sizeof(pthread_t));
 	/*make the structure to pass to the threads*/
     TwoMat * Matrices=malloc(thread_count*sizeof(TwoMat)); 
