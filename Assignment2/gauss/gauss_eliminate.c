@@ -26,7 +26,8 @@ int perform_simple_check (const Matrix);
 void print_matrix (const Matrix);
 float get_random_number (int, int);
 int check_results (float *, float *, unsigned int, float);
-int counter =0; 
+int counter1 =0; 
+int counter2=0; 
 
 int
 main (int argc, char **argv)
@@ -66,19 +67,18 @@ main (int argc, char **argv)
     int status = compute_gold (U_reference.elements, A.num_rows);
   
     gettimeofday (&stop, NULL);
-    printf ("CPU run time = %0.2f s. \n",
-            (float) (stop.tv_sec - start.tv_sec +
-                (stop.tv_usec - start.tv_usec) / (float) 1000000));
+	float x1=(float) (stop.tv_sec - start.tv_sec +(stop.tv_usec - start.tv_usec) / (float) 1000000); 
+    printf ("CPU run time = %0.2f s. \n",x1); 
 
   
     if (status == 0){
         printf("Failed to convert given matrix to upper triangular. Try again. Exiting. \n");
         exit (0);
-    }
+    } 
 
   
     status = perform_simple_check (U_reference);	// Check that the principal diagonal elements are 1 
-    if (status == 0){
+    if  (status == 0){
         printf ("The upper triangular matrix is incorrect. Exiting. \n");
         exit (0);
     }
@@ -91,13 +91,9 @@ main (int argc, char **argv)
 	gauss_eliminate_using_pthreads (U_mt);
 	gettimeofday (&stop, NULL);
 
-  	printf ("Multi-Threaded CPU run time = %0.2f s. \n",
-            (float) (stop.tv_sec - start.tv_sec +
-                (stop.tv_usec - start.tv_usec) / (float) 1000000));
-
-	//for(int i=0; i<MATRIX_SIZE*MATRIX_SIZE; i++) 
-	//	printf("(%f, %f)\n",U_mt.elements[i], U_reference.elements[i]); 
-
+	float x2=(float) (stop.tv_sec - start.tv_sec +(stop.tv_usec - start.tv_usec) / (float) 1000000); 
+  	printf ("Multi-Threaded CPU run time = %0.2f s. \n",x2); 
+	printf("Speedup=%f\n", x1/x2);
     /* check if the pthread result matches the reference solution within a specified tolerance. */
     int size = MATRIX_SIZE * MATRIX_SIZE;
     int res = check_results (U_reference.elements, U_mt.elements, size, 0.0001f);
@@ -116,53 +112,53 @@ void
 *parallel_gold(void* Matrices_ptr)
 {/*Get the stuff from the struct*/
 	TwoMat *Matrices = (TwoMat *)Matrices_ptr; 
-	float * U = Matrices->U; //U.elements
 	int k, i, j; 	
 	int n = MATRIX_SIZE;
 	float * fuck; 	
-	pthread_mutex_t barrier_mutex; //assume starts unlocked
+	pthread_mutex_t barrier1_mutex;
+	pthread_mutex_t barrier2_mutex;//assume starts unlocked
+	int ret1=pthread_mutex_init(&barrier1_mutex, NULL); 
+	int ret2=pthread_mutex_init(&barrier2_mutex, NULL);
+	
 	/*All the examples are evenly divisiable*/ 
 	for  (k = 0; k  < n; k++){
-		printf("Thread: %d, on range %d -> %d\n",Matrices->tid, Matrices->a, Matrices->b);
-		//if(Matrices->a[Matrices->tid] < k)
-		//	Matrices->a[Matrices->tid]=k; 
+		printf("k=%d for thread %d\n",k, Matrices->tid); 
+		if(Matrices->a < k+1)
+			Matrices->a=k+1;
 		 for(j=Matrices->a; j<Matrices->b; j++){
-			 if (U[n  * k + k] == 0){
+			 if (Matrices->U[n  * k + k] == 0){
 	      		printf ("Numerical instability. The principal diagonal element is zero. \n");
           		return 0;
             	}
-            U[n * k + j] = (float) (U[n * k + j] / U[n * k + k]);	// Division step
+            Matrices->U[n * k + j] = (float) (Matrices->U[n * k + j] / Matrices->U[n * k + k]);	// Division step
 		}
-        U[n * k + k] = 1;	// Set the principal diagonal entry in U to be 1 
-        pthread_mutex_lock(&barrier_mutex); 
-		counter++; 
-		pthread_mutex_unlock(&barrier_mutex);
-		printf("thread: %d\n",Matrices->tid);
-		while(counter<Matrices->num_threads); //spin till all threads catch up 
- 		printf("Division completed for k=%d\n",k);
+      	pthread_mutex_lock(&barrier1_mutex); 
+		counter1++; 
+		pthread_mutex_unlock(&barrier1_mutex);
+		while(counter1<Matrices->num_threads); //spin till all threads catch up 
+		printf("Thread %d completed division\n",Matrices->tid);
 		if(Matrices->tid==0){
-			pthread_mutex_lock(&barrier_mutex);
-			counter=0; 
-			pthread_mutex_unlock(&barrier_mutex);
+			pthread_mutex_lock(&barrier1_mutex);
+			counter1=0; 
+			pthread_mutex_unlock(&barrier1_mutex);
 			}
-		if(Matrices->a < k+1)
-			Matrices->a=k+1;
+        Matrices->U[n * k + k] = 1;	// Set the principal diagonal entry in U to be 1 
 		for(i=Matrices->a; i<Matrices->b; i++){
  			 for(j=k+1; j<n; j++)
-                U[n * i + j] = U[n * i + j] - (U[n * i + k] * U[n * k + j]);	// Elimination step
-            U[n * i + k] = 0;
+                Matrices->U[n * i + j] = Matrices->U[n * i + j] - (Matrices->U[n * i + k] * Matrices->U[n * k + j]);	// Elimination step
+            Matrices->U[n * i + k] = 0;
         }
-		pthread_mutex_lock(&barrier_mutex); 
-		counter++; 
-		pthread_mutex_unlock(&barrier_mutex);
-		while(counter<Matrices->num_threads); //spin till all threads catch up 
- 		if(Matrices->tid==0){  
-			pthread_mutex_lock(&barrier_mutex);
-			counter=0; 
-			pthread_mutex_unlock(&barrier_mutex);
+		pthread_mutex_lock(&barrier2_mutex); 
+		counter2++; 
+		pthread_mutex_unlock(&barrier2_mutex);
+		printf("Thread %d completed Elimination\n",Matrices->tid);
+		while(counter2<Matrices->num_threads); //spin till all threads catch up 
+		if(Matrices->tid==0){  
+			pthread_mutex_lock(&barrier2_mutex);
+			counter2=0; 
+			pthread_mutex_unlock(&barrier2_mutex);
 			}
     }
-	Matrices->U=U; 
 }  
 
 
