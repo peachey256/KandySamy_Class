@@ -66,7 +66,7 @@ main (int argc, char **argv)
 
     printf ("Performing gaussian elimination using the reference code. \n");
     struct timeval start, stop;
-  /*  gettimeofday (&start, NULL);
+    gettimeofday (&start, NULL);
     
     int status = compute_gold (U_reference.elements, A.num_rows);
   
@@ -88,7 +88,7 @@ main (int argc, char **argv)
     }
     printf ("Single-threaded Gaussian elimination was successful. \n");
 
-  */
+  
     /* Perform the Gaussian elimination using pthreads. The resulting upper 
      * triangular matrix should be returned in U_mt */
     gettimeofday (&start, NULL);

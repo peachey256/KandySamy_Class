@@ -15,11 +15,11 @@
 
 \begin{document}
 
-\title{Parallel Processing Lab 1: OpenMP \\ Guassian Elimination}
+\title{Parallel Processing Lab 1: OpenMP \\ Gaussian Elimination}
 \author{Sarah Peachey \& Nathan Schomer}
 \maketitle
 
-\textbf{\textit{Abstract:}} pthreads is used to paralize an executable function. 
+\textbf{\textit{Abstract:}} pthreads is used to parallelize an executable function. 
 When the pthread is created it is given a pointer to a function and a structure containing 
 all the information and needed to run that function. The data structure than needs to be 
 dereferenced, and the code can then run over a section of the data. 
@@ -29,19 +29,57 @@ dereferenced, and the code can then run over a section of the data.
 \vspace{-1.5cm}
 \section{Design}
 \vspace{-0.25cm}
-\qquad words 
+\qquad The design, as seen in the pseudo-code on the following page, is
+simply to spawn N threads with the use of a for loop. The loop points the
+threads to a executable/function in which the gaussian reduction is
+performed. To the perform the reduction data and information need to passed
+in as well, but the built-in function that creates pthreads only excepts one
+input. So if you need to pass in multiple pieces of data, a data structure
+must declared and defined with all the input information. Then in the
+function that the thread has to dereference the pointer to the input
+structure and all attributes. So the function I made was called
+$parallel\_gold$ and it accepted a TwoMat data structure called
+$Matrices\_ptr$.
+Originally the plan was to used a flip flop architecture so two matrices
+were going to be passed it, so that's what I named it. As the code developed
+a different design was used so the name seems inaccurate. But the TwoMat
+data structure has a U, a, b, $num\_threads$, and tid properties. U is a
+pointer to the elements in the input matrix U, a is the start of the section
+that the thread will operate on, b is the end of the section that the thread
+will operate on, $num\_threads$ is the number of threads (N), and tid is the thread
+ID $[0, 1, ... N-1]$. The pthreads version is then designed very similar to
+the serial design, except that the division is parallelized by each thread
+getting a chuck on the row $[a, b]$ to operate on. Then a barrier is
+implemented with a mutex lock. The elimination is parallelized by each
+thread getting a chunk of rows $[a, b]$ to operate on. Then another barrier
+using mutex lock, to make sure everything is synchronized before going to the
+next k. One aspect of the parallel design that need to be cared for was when
+k incremented, for some threads k would be greater then the lower bound (a)
+of it's respective chunk, so if $(k+1)>a$ then $a++$. 
 
 \vspace{-0.6cm}
 \section{Results}
 \vspace{-0.4cm}
-\qquad 
-
+\qquad As seen in the table on the next page, the best performance was seen
+with 8 threads. At 16 threads the overhead for thread creation and
+synchronization slowed down the program. The speed up time was calculated by
+\eqref{eq1}. It is also interesting to note that for the same thread count
+the speedup increased as the matrix got larger. This is most likely do to
+the chunk size utilization. Since a updates for some threads as k
+increments, that implies that the first thread is going to have a smaller
+chunk to execute over time, and once k is larger then the upper bound (b) 
+for that thread, it will no longer have anything to execute. So the larger
+the chunks are, the more data, the longer each thread will continue to
+evaluate it's respective chunk. A better design could have been to
+recalculate a and b as k gets larger, so that each thread always has a chunk
+of data to evaluate. 
 
 \begin{equation}
-    s = \frac{t_{serial}}{t_{parallel}}
+    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
 \end{equation}
 
 \pagebreak
+
 \begin{center}
 \hspace*{-2.5cm}
 \begin{tabular}{@{}|c|c|c|c|c|}
@@ -53,8 +91,6 @@ Thread Count & 1024x1024 & 2048x2048 & 4096x4096 \\
 8 & 2.70 & 4.03 & 4.76  \\
 \hline 
 16 & 2.16 & 3.53 & 4.62 \\
-\hline 
-32 & () & () & () \\
 \hline
 \end{tabular}
 \hspace*{-2.5cm}
@@ -63,17 +99,17 @@ Thread Count & 1024x1024 & 2048x2048 & 4096x4096 \\
 \vspace{1cm}
 \begin{algorithm}[H]
 \SetAlgoLined
-\KwResult{Function that Performs Gaussian Reduciton}
+\KwResult{Function that Performs Gaussian Reduction}
 initialization\;
 Dereferance the struct; 
 \For{each row in temp\_array}{
     \For{each element in section of row}
-            Perform Division Step
+            {Perform Division Step}
 	Barrier using a mutex
 	Set principle diagonal to 1 
-     \For{each row in section}
-	 	\For{each item in row} 
-            Perform Elimination Step
+     \For{each row in section}{
+	 	\For{each item in row}{
+            Perform Elimination Step}}
  	Barrier using a mutex 
 	Make lower triangle 0 
 	Barrier using mutex 
