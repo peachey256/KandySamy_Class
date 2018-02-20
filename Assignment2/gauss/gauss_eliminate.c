@@ -29,7 +29,9 @@ int check_results (float *, float *, unsigned int, float);
 int counter1 =0; 
 int counter2=0; 
 int counter3=0; 
-pthread_mutex_t barrier_mutex;
+pthread_mutex_t barrier1_mutex;
+pthread_mutex_t barrier2_mutex;
+pthread_mutex_t barrier3_mutex;
 
 int
 main (int argc, char **argv)
@@ -64,7 +66,7 @@ main (int argc, char **argv)
 
     printf ("Performing gaussian elimination using the reference code. \n");
     struct timeval start, stop;
-    gettimeofday (&start, NULL);
+  /*  gettimeofday (&start, NULL);
     
     int status = compute_gold (U_reference.elements, A.num_rows);
   
@@ -86,7 +88,7 @@ main (int argc, char **argv)
     }
     printf ("Single-threaded Gaussian elimination was successful. \n");
 
-  
+  */
     /* Perform the Gaussian elimination using pthreads. The resulting upper 
      * triangular matrix should be returned in U_mt */
     gettimeofday (&start, NULL);
@@ -95,7 +97,7 @@ main (int argc, char **argv)
 
 	float x2=(float) (stop.tv_sec - start.tv_sec +(stop.tv_usec - start.tv_usec) / (float) 1000000); 
   	printf ("Multi-Threaded CPU run time = %0.2f s. \n",x2); 
-	printf("Speedup=%f\n", x1/x2);
+//	printf("Speedup=%f\n", x1/x2);
     /* check if the pthread result matches the reference solution within a specified tolerance. */
     int size = MATRIX_SIZE * MATRIX_SIZE;
     
@@ -131,9 +133,9 @@ void
             Matrices->U[n * k + j] = (float) (Matrices->U[n * k + j] / Matrices->U[n * k + k]);	// Division step
 		} 
 		//barrier 
-      	pthread_mutex_lock(&barrier_mutex); 
+      	pthread_mutex_lock(&barrier1_mutex); 
 		counter1++; 
-		pthread_mutex_unlock(&barrier_mutex);
+		pthread_mutex_unlock(&barrier1_mutex);
 		while(counter1<Matrices->num_threads); //spin till all threads catch up 
 		printf("Thread %d completed division\n",Matrices->tid);
 		// Set the principal diagonal entry in U to be 1 
@@ -144,15 +146,15 @@ void
                 Matrices->U[n * i + j] = Matrices->U[n * i + j] - (Matrices->U[n * i + k] * Matrices->U[n * k + j]);	// Elimination step
         }
 		//reset this one in here 
-		pthread_mutex_lock(&barrier_mutex); 
+		pthread_mutex_lock(&barrier3_mutex); 
 		if(counter3==Matrices->num_threads)
 			counter3=0; 
-		pthread_mutex_unlock(&barrier_mutex); 
+		pthread_mutex_unlock(&barrier3_mutex); 
 
 		//barrier
-		pthread_mutex_lock(&barrier_mutex); 
+		pthread_mutex_lock(&barrier2_mutex); 
 		counter2++; 
-		pthread_mutex_unlock(&barrier_mutex);
+		pthread_mutex_unlock(&barrier2_mutex);
 		
 		while(counter2<Matrices->num_threads); //spin till all threads catch up 
 		printf("Thread %d completed Elimination\n",Matrices->tid);
@@ -161,19 +163,19 @@ void
 			Matrices->U[n * i + k] = 0;
 		
 		//reset the counters 
-		pthread_mutex_lock(&barrier_mutex); 
+		pthread_mutex_lock(&barrier1_mutex); 
 		if(counter1==Matrices->num_threads)
 			counter1=0; 
-		pthread_mutex_unlock(&barrier_mutex); 
-		pthread_mutex_lock(&barrier_mutex); 
+		pthread_mutex_unlock(&barrier1_mutex); 
+		pthread_mutex_lock(&barrier2_mutex); 
 		if(counter2==Matrices->num_threads)
 			counter2=0; 
-		pthread_mutex_unlock(&barrier_mutex); 
+		pthread_mutex_unlock(&barrier2_mutex); 
 
 		//synch at the end cause why the hell not. 
-		pthread_mutex_lock(&barrier_mutex); 
+		pthread_mutex_lock(&barrier3_mutex); 
 		counter3++; 
-		pthread_mutex_unlock(&barrier_mutex);
+		pthread_mutex_unlock(&barrier3_mutex);
 		while(counter3<Matrices->num_threads); //spin till all threads catch up 
 			}
 }  
@@ -182,7 +184,7 @@ void
 /* Write code to perform gaussian elimination using pthreads. */
 void
 gauss_eliminate_using_pthreads (Matrix U)
-{ 
+{  
 	
 	/* malloc the threads */
 	pthread_t* thread_handles; 
@@ -190,7 +192,9 @@ gauss_eliminate_using_pthreads (Matrix U)
  	thread_handles=malloc(thread_count*sizeof(pthread_t));
 	/*make the structure to pass to the threads*/
     TwoMat * Matrices=malloc(thread_count*sizeof(TwoMat)); 
-	pthread_mutex_init(&barrier_mutex, NULL);
+	pthread_mutex_init(&barrier1_mutex, NULL);
+	pthread_mutex_init(&barrier2_mutex, NULL);
+	pthread_mutex_init(&barrier3_mutex, NULL);
 	int n = MATRIX_SIZE/thread_count; 
 	int thread; 
 	/*Spawn of threads into a reference function*/
