@@ -26,8 +26,12 @@
 #define LEFT_ENDPOINT 5
 #define RIGHT_ENDPOINT 1000
 #define NUM_TRAPEZOIDS 100000000
-#define NUM_THREADS 16 /* Number of threads to run. */
 
+/* Number of threads to run. */
+#define NUM_THREADS 2
+#define NUM_THREADS 4
+#define NUM_THREADS 8
+#define NUM_THREADS 16
 
 /*------------------------------------------------------------------
  * Function:    func
@@ -96,7 +100,7 @@ typedef struct numbers
 } numbers; 
 
 
-void * someFunction(void *argstruct)
+void * calcTrap(void *argstruct)
 {
 	numbers* param=(numbers*)argstruct; 
 	param->sum = compute_gold(param->a, param->b, param->n, param->f); 	
@@ -105,28 +109,41 @@ void * someFunction(void *argstruct)
 
 double compute_using_pthreads(float a, float b, int n, float(*f)(float))
 {
-	int i;
-	double sum;
-	float range=(b-a)/(float)NUM_THREADS;
-	struct timeval begin,end;
-	numbers* arglist=malloc(sizeof(numbers)*NUM_THREADS);
-	pthread_t* threads=malloc(NUM_THREADS*sizeof(pthread_t));
+    double sum; /* Global sum across all threads */
+	float range=(b-a)/(float)NUM_THREADS; /* width of each trap */
+	
+    struct timeval begin,end;
 
-	for(i=0;i<NUM_THREADS;++i){
+    /* allocate mem for each thread */
+    pthread_t* threads=malloc(NUM_THREADS*sizeof(pthread_t));
+
+    /* Prep arguments for each thread */
+    numbers* arglist=malloc(sizeof(numbers)*NUM_THREADS);
+
+    int i;
+    for(i=0; i<NUM_THREADS; ++i)
+    {
 		arglist[i].n=n/NUM_THREADS;
 		arglist[i].a=a+(range*i);
 		arglist[i].b=a+(range*(i+1));
 		arglist[i].f=f;
 	}
-	gettimeofday(&begin,NULL);
+	
+    gettimeofday(&begin,NULL);
+    
+    /* Spin up threads */
+	for(i=0;i<NUM_THREADS;++i) {
+		pthread_create(&threads[i], NULL, calcTrap, &arglist[i]);
+    }
+
+    /* Wait for each thread to finish */
 	for(i=0;i<NUM_THREADS;++i)
-		pthread_create(&threads[i], NULL, someFunction, &arglist[i]); 	
-	for(i=0;i<NUM_THREADS;++i){
-		pthread_join(threads[i], NULL); 
+    {
+		pthread_join(threads[i], NULL);
 		sum+=arglist[i].sum;
 	}
+
 	gettimeofday(&end,NULL);
-//	printf("%lu \t %lu \n",begin.tv_usec,end.tv_usec);
 	printf("Pthread solution computed in %luus \n", end.tv_usec-begin.tv_usec+(end.tv_sec-begin.tv_sec)*1000000);
 	return sum;
 }  
