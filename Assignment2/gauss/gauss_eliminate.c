@@ -188,7 +188,7 @@ gauss_eliminate_using_pthreads (Matrix U)
 	
 	/* malloc the threads */
 	pthread_t* thread_handles; 
-	int thread_count=16;
+	int thread_count=4;
  	thread_handles=malloc(thread_count*sizeof(pthread_t));
 	/*make the structure to pass to the threads*/
     TwoMat * Matrices=malloc(thread_count*sizeof(TwoMat)); 
