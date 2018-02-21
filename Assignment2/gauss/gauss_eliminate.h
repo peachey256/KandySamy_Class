@@ -2,8 +2,8 @@
 #define _MATRIXMUL_H_
 
 //#define MATRIX_SIZE 1024 
-#define MATRIX_SIZE 2048
-//#define MATRIX_SIZE 4096
+//#define MATRIX_SIZE 2048
+#define MATRIX_SIZE 4096
 
 // Matrix dimensions
 #define NUM_COLUMNS MATRIX_SIZE // Number of columns in Matrix A

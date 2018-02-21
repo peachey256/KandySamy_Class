@@ -14,11 +14,11 @@
 
 \begin{document}
 
-\title{Parallel Processing Lab 2: \\ Pthreads Numerical Integration}
+\title{Parallel Processing Lab 1: Pthreads \\ Gaussian Elimination}
 \author{Sarah Peachey \& Nathan Schomer}
 \maketitle
 
-\textbf{\textit{Abstract:}} pthreads is used to paralize an executable function. 
+\textbf{\textit{Abstract:}} pthreads is used to parallelize an executable function. 
 When the pthread is created it is given a pointer to a function and a structure containing 
 all the information and needed to run that function. The data structure than needs to be 
 dereferenced, and the code can then run over a section of the data. 
@@ -28,77 +28,93 @@ dereferenced, and the code can then run over a section of the data.
 \vspace{-1.5cm}
 \section{Design}
 \vspace{-0.25cm}
-\qquad The parallel numerical integration algorithm was designed such
-that using $N$ threads and a trapezoid width of $W$, each thread would 
-calculate $W/N$ sub-trapezoids assuming $W \mod N = 0$. With this design,
-it would be expected to see a decrease in execution time with an
-increased number of threads. 
-
-When implemented, the algorithm was broken into 3 for loops which
-follows the basic design pattern of a pthreads program. 
-The first packed 
-a custom struct with all necessary data for each thread (start x, end x, 
-number of trapezoids, and height). The next loop created each thread,
-passing in the respective argument struct and a pointer to the function
-that calculates the current trapezoid. The last for loop, waits for
-all threads to join and then adds the result from each thread to a 
-global sum. The global sum is then returned to the calling function.
-Pseudocode is included on the next page. 
-
-\pagebreak
-\vspace{1cm}
-\begin{algorithm}[H]
-	\KwData{start\_x, end\_x, num\_traps, height}
- 	\KwResult{estimated integral of function between start\_x and end\_x}
- 	initialization\;
-    \For{\texttt{i <  num\_threads}}{
-  	    pack argument struct for thread i\;
-   	}
-
-    \For{\texttt{i < num\_threads}}{
-  	    create thread i\;
-        serially calculate sub-trapezoid i\;
-   	}
-
-    \For{\texttt{i < num\_threads}}{
-        join each thread\;
-        global\_sum = global\_sum + thread\_sum;
-    }
+\qquad The design, as seen in the pseudo-code on the following page, is
+simply to spawn N threads with the use of a for loop. The loop points the
+threads to a executable/function in which the gaussian reduction is
+performed. To the perform the reduction data and information need to passed
+in as well, but the built-in function that creates pthreads only excepts one
+input. So if you need to pass in multiple pieces of data, a data structure
+must declared and defined with all the input information. Then in the
+function that the thread has to dereference the pointer to the input
+structure and all attributes. So the function I made was called
+$parallel\_gold$ and it accepted a TwoMat data structure called
+$Matrices\_ptr$.
+Originally the plan was to used a flip flop architecture so two matrices
+were going to be passed it, so that's what I named it. As the code developed
+a different design was used so the name seems inaccurate. But the TwoMat
+data structure has a U, a, b, $num\_threads$, and tid properties. U is a
+pointer to the elements in the input matrix U, a is the start of the section
+that the thread will operate on, b is the end of the section that the thread
+will operate on, $num\_threads$ is the number of threads (N), and tid is the thread
+ID $[0, 1, ... N-1]$. The pthreads version is then designed very similar to
+the serial design, except that the division is parallelized by each thread
+getting a chuck on the row $[a, b]$ to operate on. Then a barrier is
+implemented with a mutex lock. The elimination is parallelized by each
+thread getting a chunk of rows $[a, b]$ to operate on. Then another barrier
+using mutex lock, to make sure everything is synchronized before going to the
+next k. One aspect of the parallel design that need to be cared for was when
+k incremented, for some threads k would be greater then the lower bound (a)
+of it's respective chunk, so if $(k+1)>a$ then $a++$. 
    	
-\caption{Pthreads Numerical Integration}
-\end{algorithm}
-
 \pagebreak
 \vspace{-0.6cm}
 \section{Results}
 \vspace{-0.4cm}
-\qquad The pthreads numerical integration function was executed using 2, 4, 8, and 16 threads. Each thread count was executed 10 times and
-the average speed-up was recorded. The results are listed in 
-Table~1. Speed-up was calculated by dividing time of 
-serial execution by the average execution time for each thread count
-as shown in Equation 1.
-
-As seen in Table~1, continuous speed-up was seen 
-up to 8 threads. Then, there was a slight drop off with 16 threads.
-Overall, the parallelized algorithm achieved substantial gains
-in execution time over the serial version. 
+\qquad As seen in the table on the next page, the best performance was seen
+with 8 threads. At 16 threads the overhead for thread creation and
+synchronization slowed down the program. The speed up time was calculated by
+\eqref{eq1}. It is also interesting to note that for the same thread count
+the speedup increased as the matrix got larger. This is most likely do to
+the chunk size utilization. Since a updates for some threads as k
+increments, that implies that the first thread is going to have a smaller
+chunk to execute over time, and once k is larger then the upper bound (b) 
+for that thread, it will no longer have anything to execute. So the larger
+the chunks are, the more data, the longer each thread will continue to
+evaluate it's respective chunk. A better design could have been to
+recalculate a and b as k gets larger, so that each thread always has a chunk
+of data to evaluate. 
 
 \begin{equation}
-    s = \frac{t_{serial}}{t_{parallel}}
+    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
 \end{equation}
 
-\begin{table}[H]
-    \centering
-\begin{tabular}{@{}|l|c|}
+\pagebreak
+
+\begin{center}
+\hspace*{-2.5cm}
+\begin{tabular}{@{}|c|c|c|c|}
 \hline
-Thread Count & Speed-Up \\ \hline
-2  & 4.70  \\ \hline 
-4  & 13.91 \\ \hline 
-8  & 15.50 \\ \hline 
-16 & 14.77 \\ \hline 
+Thread Count & 1024x1024 & 2048x2048 & 4096x4096 \\
+\hline
+4 & 2.08 & 2.39 & 2.47 \\
+\hline
+8 & 2.70 & 4.03 & 4.76  \\
+\hline 
+16 & 2.16 & 3.53 & 4.62 \\
+\hline
 \end{tabular}
-\caption{Average Speed-Up over 10 Iterations}
-\end{table}
+\hspace*{-2.5cm}
+\end{center}
+
+\vspace{1cm}
+\begin{algorithm}[H]
+\SetAlgoLined
+\KwResult{Function that Performs Gaussian Reduction}
+initialization\;
+Dereferance the struct; 
+\For{each row in temp\_array}{
+    \For{each element in section of row}
+            {Perform Division Step}
+	Barrier using a mutex
+	Set principle diagonal to 1 
+     \For{each row in section}{
+	 	\For{each item in row}{
+            Perform Elimination Step}}
+ 	Barrier using a mutex 
+	Make lower triangle 0 
+	Barrier using mutex 
+}
+\end{algorithm}
 
 %\pagebreak
 
