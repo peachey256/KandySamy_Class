@@ -90,7 +90,37 @@ main(int argc, char** argv) {
 void 
 vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matrix Y)
 {
+ 	//allocate matrices on GPU
+	Matrix A_on_device = allocate_matrix_on_GPU(A);
+	Matrix X_on_device = allocate_matrix_on_GPU(X);
+	Matrix Y_on_device = allocate_matrix_on_GPU(X); 
 
+	//copy (A, X, Y) matrices CPU-> GPU
+	// need to copy Y as well so the properties of Y get copied
+	copy_matrix_to_device(A_on_device, A); 
+	copy_matrix_to_device(X_on_device, X); 
+	copy_matrix_to_device(Y_on_device, Y); 
+	
+	//set up execution grid 
+	int TB_size = 32; //max thread block size. 
+	dim3 thread_block(TB_size, TB_size, 1); // need i and j directions. 
+	int num_TB = MATRIX_SIZE/TB_size; // test values are divisible by 32. 
+	dim3 grid(num_TB, num_TB);  
+	
+	//launch the kernel
+	vec_mat_kernel_naive <<< grid, thread_block >>> (A_on_device.elements, B_on_device.elements, C_on_device.elements);  	
+	cudaThreadSynchronize(); 
+	check_for_error("KERNEL FAILURE"); 
+
+	//copy (Y) matrix GPU->CPU
+	//only transfer Y back because transfering is the bottle neck and we
+	//don't have further use of A, and X. 
+	copy_matrix_from_device(Y, Y_on_device); 	
+
+	//free Matrices on GPU
+	cudaFree(A_on_device.elements); 
+	cudaFree(X_on_device.elements); 
+	cudaFree(Y_on_device.elements); 	
 }
 
 // Complete the functionality of vector-matrix multiplication using the GPU
