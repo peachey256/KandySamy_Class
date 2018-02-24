@@ -1,6 +1,6 @@
 /* Vector-matrix multiplication: Y = A * X.
  * Host code.
- * Author: Naga Kandasamy
+ * Author: Naga Kandasamy, Sarah Peachey, & Nathan Schomer
  * Date: 2/21/2017
 */
 
@@ -102,10 +102,21 @@ vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matri
 	copy_matrix_to_device(Y_on_device, Y); 
 	
 	//set up execution grid 
-	int TB_size = 32; //max thread block size. 
-	dim3 thread_block(TB_size, TB_size, 1); // need i and j directions. 
-	int num_TB = MATRIX_SIZE/TB_size; // test values are divisible by 32. 
-	dim3 grid(num_TB, num_TB);  
+	int TB_size, num_TB; 
+	int max_TB_size=1024;//max thread block size.  
+	if(MATRIX_SIZE<max_TB_size){
+		TB_size=MATRIX_SIZE;//512 
+		num_TB=1; 
+	}else{ // dimension of matrix is greater than or equal to number or
+	// allowable threads in a thread block. If greater than more than 1 thread
+	// block will be needed.  
+		TB_size=max_TB_size; //1024, and 2048
+		num_TB = MATRIX_SIZE/max_TB_size;//all examples are evenly divisible 
+	}
+	//put all the threads in the y direction so that one thread can calculate
+	//one output by looping through all j. 
+	dim3 thread_block(1, TB_size, 1);  
+	dim3 grid(1, num_TB);  
 	
 	//launch the kernel
 	vec_mat_kernel_naive <<< grid, thread_block >>> (A_on_device.elements, B_on_device.elements, C_on_device.elements);  	

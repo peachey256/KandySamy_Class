@@ -11,22 +11,12 @@
 __global__ void vec_mat_kernel_naive(float *Ad, float *Xd, float *Yd)
 {
 	//Multiply A and X
-	int thread_id_i = blockIdx.x * blockDim.x + threadIdx.x;
-	int thread_id_j = blockIdx.y * blockDim.y + threadIdx.y; 
-	int stride = blockDim.x * gridDim.x; 
-	// stride should be the same in the x and y direction because everything
-	// is square. 
-	
-	int thread_id_j_org = thread_id_j; 
-	while(thread_id_i < MATRIX_SIZE) { 
-		y[thread_id_i]=0; //initialize
-		while(thread_id_j<MATRIX_SIZE){
-			Yd[thread_id_i]+=Ad[thread_id_i*MATRIX_SIZE+thread_id_j]*Xd[thread_id_j]; 
-			thread_id_j+=stride; 
-		} 
-		thread_id_j=thread_id_j_org;
-		thread_id_i+=stride;
-	}
+	int thread_id= blockIdx.y * blockDim.y + threadIdx.y;
+	int n = blockDim.y*gridDim.y; 
+	int j; 
+	Yd[thread_id]=0; //initialize
+	for(j=0; j<n; j++) 	
+		Yd[thread_id]+=Ad[thread_id*n+j]*Xd[j]; 
 }  
 
 
