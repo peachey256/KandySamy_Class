@@ -14,9 +14,10 @@ __global__ void vec_mat_kernel_naive(float *Ad, float *Xd, float *Yd)
 	int thread_id= blockIdx.y * blockDim.y + threadIdx.y;
 	int n = blockDim.y*gridDim.y; 
 	int j; 
-	Yd[thread_id]=0; //initialize
-	for(j=0; j<n; j++) 	
-		Yd[thread_id]+=Ad[thread_id*n+j]*Xd[j]; 
+	float y_temp=0;  //initialize
+	for(j=0; j<n; j++)
+		y_temp+=Ad[thread_id*n+j]*Xd[j]; 
+	Yd[thread_id]=y_temp; 
 }  
 
 
