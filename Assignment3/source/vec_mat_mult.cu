@@ -90,7 +90,10 @@ main(int argc, char** argv) {
 void 
 vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matrix Y)
 {
- 	//allocate matrices on GPU
+	//declare timing things 
+	struct timeval begin,end;
+ 
+	//allocate matrices on GPU
 	Matrix A_on_device = allocate_matrix_on_gpu(A);
 	Matrix X_on_device = allocate_matrix_on_gpu(X);
 	Matrix Y_on_device = allocate_matrix_on_gpu(Y); 
@@ -117,12 +120,16 @@ vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matri
 	//one output by looping through all j. 
 	dim3 thread_block(1, TB_size, 1);  
 	dim3 grid(1, num_TB);  
-	
+
+	gettimeofday(&begin,NULL);	
 	//launch the kernel
 	vec_mat_kernel_naive <<< grid, thread_block >>> (A_on_device.elements,
             X_on_device.elements, Y_on_device.elements);  	
 	cudaThreadSynchronize(); 
 	//check_for_error("KERNEL FAILURE"); 
+	gettimeofday(&end,NULL);
+	printf("Global GPU solution computed in %luus \n",
+		end.tv_usec-begin.tv_usec+(end.tv_sec-begin.tv_sec)*1000000);
 
 	//copy (Y) matrix GPU->CPU
 	//only transfer Y back because transfering is the bottle neck and we
@@ -140,6 +147,9 @@ vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matri
 void 
 vec_mat_mult_on_device_using_shared_memory(const Matrix A, const Matrix X, Matrix Y)
 {
+	//declare timing things 
+	struct timeval begin,end;
+
 	Matrix A_on_device = allocate_matrix_on_gpu(A);
 	Matrix X_on_device = allocate_matrix_on_gpu(X);
 	Matrix Y_on_device = allocate_matrix_on_gpu(Y); 
@@ -155,13 +165,17 @@ vec_mat_mult_on_device_using_shared_memory(const Matrix A, const Matrix X, Matri
 
     dim3 thread_block(TILE_SIZE, TILE_SIZE);
     dim3 grid(numTiles);
-    
+   
+	gettimeofday(&begin,NULL);	
     // setup grid/ block dimensions
     vec_mat_kernel_optimized <<< grid, thread_block >>>
         (A_on_device.elements, X_on_device.elements, Y_on_device.elements);
     
     // wait for all kernels to finish
     cudaThreadSynchronize();
+	 gettimeofday(&end,NULL);
+	 printf("Global GPU solution computed in %luus \n",
+		end.tv_usec-begin.tv_usec+(end.tv_sec-begin.tv_sec)*1000000);
 
     // copy result back to CPU
     copy_matrix_from_device(Y, Y_on_device);
