@@ -24,7 +24,49 @@ __global__ void vec_mat_kernel_naive(float *Ad, float *Xd, float *Yd)
 /* Write the kernel for vector-matrix multiplication using GPU shared memory. */
 __global__ void vec_mat_kernel_optimized(float *Ad, float *Xd, float *Yd)
 {
-	//Multiply A and X
+    // allocate some shared memory
+    __shared__ float M_shared[TILE_SIZE][TILE_SIZE];
+    __shared__ float N_shared[TILE_SIZE];
+
+    // locate yo self within tile
+    const unsigned int tileCol = blockIdx.x;
+    const unsigned int tileRow = blockIdx.y;
+
+    // locate yo self within Array
+    const unsigned int row = blockDim.y * blockIdx.y + tileRow;
+    const unsigned int col = blockDim.x * blockIdx.x + tileCol;
+
+    // number of tiles we're going to need
+    // ... add an extra if not evently divisble
+    unsigned int numTiles = MATRIX_SIZE / TILE_SIZE;
+    if ( MATRIX_SIZE % TILE_SIZE ) numTiles++;
+
+    float partSum = 0.0f;
+
+    int tileNum;
+    for (tileNum=0; tileNum < numTiles; tileNum++)
+    {
+        // read elements of this tile into shared memory
+        if (row < TILE_SIZE && col < TILE_SIZE) {
+            M_shared[tileRow][tileCol] = Ad[row*TILE_SIZE+col];
+            N_shared[tileRow] = Xd[col];
+        } else {
+            M_shared[tileRow][tileCol] = 0.0f;
+            N_shared[tileRow] = 0.0f;
+        }
+
+        // wait for all threads to finish populating shared memory
+        __syncthreads();
+
+        // mulitply yourself by corresponding element in N
+        partSum += M_shared[tileRow][tileCol] * N_shared[tileCol];
+
+        // wait for threads to finish multiplying
+        __syncthreads();
+    }
+
+    if (col < TILE_SIZE && row < TILE_SIZE)
+        Yd[row*TILE_SIZE + col] = (float)partSum;
 }
 
 

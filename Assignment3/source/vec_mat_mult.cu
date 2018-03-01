@@ -91,9 +91,9 @@ void
 vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matrix Y)
 {
  	//allocate matrices on GPU
-	Matrix A_on_device = allocate_matrix_on_GPU(A);
-	Matrix X_on_device = allocate_matrix_on_GPU(X);
-	Matrix Y_on_device = allocate_matrix_on_GPU(X); 
+	Matrix A_on_device = allocate_matrix_on_gpu(A);
+	Matrix X_on_device = allocate_matrix_on_gpu(X);
+	Matrix Y_on_device = allocate_matrix_on_gpu(Y); 
 
 	//copy (A, X, Y) matrices CPU-> GPU
 	// need to copy Y as well so the properties of Y get copied
@@ -119,9 +119,10 @@ vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matri
 	dim3 grid(1, num_TB);  
 	
 	//launch the kernel
-	vec_mat_kernel_naive <<< grid, thread_block >>> (A_on_device.elements, B_on_device.elements, C_on_device.elements);  	
+	vec_mat_kernel_naive <<< grid, thread_block >>> (A_on_device.elements,
+            X_on_device.elements, Y_on_device.elements);  	
 	cudaThreadSynchronize(); 
-	check_for_error("KERNEL FAILURE"); 
+	//check_for_error("KERNEL FAILURE"); 
 
 	//copy (Y) matrix GPU->CPU
 	//only transfer Y back because transfering is the bottle neck and we
@@ -139,6 +140,36 @@ vec_mat_mult_on_device_using_global_memory(const Matrix A, const Matrix X, Matri
 void 
 vec_mat_mult_on_device_using_shared_memory(const Matrix A, const Matrix X, Matrix Y)
 {
+	Matrix A_on_device = allocate_matrix_on_gpu(A);
+	Matrix X_on_device = allocate_matrix_on_gpu(X);
+	Matrix Y_on_device = allocate_matrix_on_gpu(Y); 
+
+	//copy (A, X, Y) matrices CPU-> GPU
+	// need to copy Y as well so the properties of Y get copied
+	copy_matrix_to_device(A_on_device, A); 
+	copy_matrix_to_device(X_on_device, X); 
+	copy_matrix_to_device(Y_on_device, Y); 
+
+    unsigned int numTiles = MATRIX_SIZE / TILE_SIZE;
+    if ( MATRIX_SIZE % TILE_SIZE ) numTiles++;
+
+    dim3 thread_block(TILE_SIZE, TILE_SIZE);
+    dim3 grid(numTiles);
+    
+    // setup grid/ block dimensions
+    vec_mat_kernel_optimized <<< grid, thread_block >>>
+        (A_on_device.elements, X_on_device.elements, Y_on_device.elements);
+    
+    // wait for all kernels to finish
+    cudaThreadSynchronize();
+
+    // copy result back to CPU
+    copy_matrix_from_device(Y, Y_on_device);
+
+    //free Matrices on GPU
+	cudaFree(A_on_device.elements); 
+	cudaFree(X_on_device.elements); 
+    cudaFree(Y_on_device.elements); 	
 
 }
 
