@@ -1,0 +1,117 @@
+\documentclass[12pt]{article}
+\renewcommand{\baselinestretch}{1.5}
+\usepackage[utf8]{inputenc}
+
+\usepackage{hyperref}
+\hypersetup{linktoc=all}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{algorithm2e}
+\usepackage{graphicx}
+\usepackage{float}
+
+\begin{document}
+
+\title{Parallel Processing Lab 3: \\ Introduction to CUDA - Matrix-Vector
+Multiplication}
+\author{Sarah Peachey \& Nathan Schomer}
+\maketitle
+
+\textbf{\textit{Abstract:}} GPU's can process SIMD code very quickly because
+it can run many threads on different data with the same instructions. First
+the CPU must create resources on the GPU and copy the data over, then the
+kernel code is launched. Once the kernel is launched the CPU can either run
+more code in parallel with the GPU or it can wait for the GPU kernel to
+complete. Then the CPU would transfer the output from the GPU back to the CPU 
+and then free the resources on the GPU. The kernel code is ran on every
+thread in the thread blocks in the grid, which was allocated by CUDA
+functions in the CPU code.   
+\newpage
+
+\vspace{-1.5cm}
+\section{Naive Design}
+\vspace{-0.25cm}
+
+\qquad To calculate the matrix vector multiplication of $Ax=y$ when A is a
+$n \times n$ matrix, x is a $n \times 1$ vector, and y is a $n \times 1$
+vector. The naive approach is to create a thread to compute each element in
+the y vector. That thread then loads all the elements of the x vector as
+well as all the elements in that corresponding row of A. Then element-wise
+multiply and sum those values and store it back into global memory in the
+vector y. So two values are loaded from global memory for every two floating
+point operations, so the arithmetic intensity of the algorithm is 1. Which
+means the code is memory bound, because if only uses 6 of the available 880
+GFlops. 
+
+\vspace{1cm}
+\begin{algorithm}[H]
+	\KwData{Ad, Xd, Yd}
+ 	\KwResult{kernel to calculate the matrix vector multiplication}
+ 	initialization\;
+	tid=threadIdx.y+(blockIdx.y*blockDim.y)\;
+	yTemp=0\;
+    \For{\texttt{i < MATRIX SIZE }}{
+  	    yTemp+=A[tid*MATRIX SIZE+i]*X[i]\;
+   	}
+	y[tid]=yTemp\; 
+   	
+% \caption{Pthreads Numerical Integration}
+\end{algorithm}
+
+\pagebreak
+\vspace{-0.6cm}
+\section{Shared Memory Design}
+
+\vspace{-0.4cm}
+\qquad words 
+
+
+\vspace{1cm}
+\begin{algorithm}[H]
+	\KwData{start\_x, end\_x, num\_traps, height}
+ 	\KwResult{estimated integral of function between start\_x and end\_x}
+ 	initialization\;
+    \For{\texttt{i <  num\_threads}}{
+  	    pack argument struct for thread i\;
+   	}
+
+    \For{\texttt{i < num\_threads}}{
+  	    create thread i\;
+        serially calculate sub-trapezoid i\;
+   	}
+
+    \For{\texttt{i < num\_threads}}{
+        join each thread\;
+        global\_sum = global\_sum + thread\_sum;
+    }
+\end{algorithm}
+
+
+\pagebreak
+\vspace{-0.6cm}
+\section{Discussion of speed up}
+\vspace{-0.4cm}
+\qquad words 
+
+
+\begin{equation}
+    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
+\end{equation}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}|l|c|c|}
+\hline
+Thread Count & Global Speed-Up & Shared Speed-Up\\ \hline
+2  &  &  \\ \hline 
+4  &  &  \\ \hline 
+8  &  &  \\ \hline 
+16 &  &  \\ \hline 
+\end{tabular}
+\caption{Average Speed-Up over 10 Iterations}
+\end{table}
+
+
+\end{document}
