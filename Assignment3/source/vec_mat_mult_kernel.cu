@@ -28,8 +28,7 @@ __global__ void vec_mat_kernel_optimized(float *Ad, float *Xd, float *Yd)
 {
     // allocate some shared memory
     __shared__ double M_shared[TILE_SIZE][TILE_SIZE];
-    __shared__ double N_shared[TILE_SIZE];
-	 __shared__ double partsum[MATRIX_SIZE]; 
+    __shared__ double N_shared[TILE_SIZE]; 
 	
     // locate yo self within tile - TB and tile size are the same. 
     const unsigned int tileCol = threadIdx.x;
@@ -66,14 +65,14 @@ __global__ void vec_mat_kernel_optimized(float *Ad, float *Xd, float *Yd)
         __syncthreads();
 
         // mulitply yourself by corresponding element in N
-        atomicAdd(&partSum[row], M_shared[tileRow][tileCol] * N_shared[tileCol]);
+			atomicAdd(&partSum, M_shared[tileRow][tileCol] * N_shared[tileCol]);
 
         // wait for threads to finish multiplying
         __syncthreads();
     }
 
     if (col < TILE_SIZE && row < TILE_SIZE)
-        Yd[row] = (float)partSum[row];
+        Yd[row] = (float)partSum;
 }
 
 
