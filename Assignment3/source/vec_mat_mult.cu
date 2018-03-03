@@ -6,7 +6,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 #include <string.h>
 #include <math.h>
 
@@ -165,7 +165,7 @@ vec_mat_mult_on_device_using_shared_memory(const Matrix A, const Matrix X, Matri
 
     dim3 thread_block(TILE_SIZE, TILE_SIZE);
     dim3 grid(numTiles);
-   
+
 	gettimeofday(&begin,NULL);	
     // setup grid/ block dimensions
     vec_mat_kernel_optimized <<< grid, thread_block >>>
@@ -260,10 +260,11 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
 {
     int checkMark = 1;
     float epsilon = 0.0;
-    
+
     for(int i = 0; i < num_elements; i++)
         if(fabsf((reference[i] - gpu_result[i])/reference[i]) > threshold){
             checkMark = 0;
+            printf("\nERROR -- Elements diverge at %d\n\n", i);
             break;
         }
 

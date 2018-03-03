@@ -1,7 +1,3 @@
-/* Vector-Matrix multiplication: Y = A * X.
- * Device code.
- */
-
 #ifndef _MATRIXMUL_KERNEL_H_
 #define _MATRIXMUL_KERNEL_H_
 
@@ -35,44 +31,40 @@ __global__ void vec_mat_kernel_optimized(float *Ad, float *Xd, float *Yd)
     const unsigned int tileRow = threadIdx.y;
 
     // locate yo self within Array
-    const unsigned int row = blockDim.y * blockIdx.y + tileRow;
-    const unsigned int col = blockDim.x * blockIdx.x + tileCol;
+    //  ... only true for first file
+    const unsigned int row = blockDim.x * blockIdx.x + tileRow;
+    //const unsigned int col = blockDim.x * blockIdx.x + tileCol;
 
     // number of tiles we're going to need
     // ... add an extra if not evently divisble
-    unsigned int numTiles = MATRIX_SIZE / TILE_SIZE;
-    if ( MATRIX_SIZE % TILE_SIZE ) numTiles++;
-
     double partSum = 0.0f;
+    int temp;
+    int k;
 
-    int tileNum;
-  	 int totCol; 
-    for (tileNum=0; tileNum < numTiles; tileNum++)
-    {
-        // add the stride or tileNum to the col 
-			totCol= (tileNum*TILE_SIZE)+col;  
-			
-			// read elements of this tile into shared memory
-        if (row < MATRIX_SIZE && col < MATRIX_SIZE) {
-            M_shared[tileRow][tileCol] = Ad[row*MATRIX_SIZE+totCol];
-            N_shared[tileRow] = Xd[totCol];
-        } else {
+    // moves tile across matrix
+    for(k=0; k<MATRIX_SIZE; k+=TILE_SIZE) {
+        // check M edge conditions for this tile
+        if(k + tileCol < MATRIX_SIZE && row < MATRIX_SIZE)
+            M_shared[tileRow][tileCol] = Ad[row*MATRIX_SIZE + k + tileCol];
+        else
             M_shared[tileRow][tileCol] = 0.0f;
-            N_shared[tileRow] = 0.0f;
-        }
 
-        // wait for all threads to finish populating shared memory
+        if (k + tileCol < MATRIX_SIZE) 
+            N_shared[tileCol] = Xd[k+tileCol];
+        else
+            N_shared[tileCol] = 0.0f;
+
         __syncthreads();
 
-        // mulitply yourself by corresponding element in N
-			atomicAdd(&partSum, M_shared[tileRow][tileCol] * N_shared[tileCol]);
+        for(temp = 0; temp < TILE_SIZE; temp++)
+            partSum += M_shared[tileRow][temp] * N_shared[temp];
 
-        // wait for threads to finish multiplying
         __syncthreads();
     }
 
-    if (col < TILE_SIZE && row < TILE_SIZE)
+    if (row < MATRIX_SIZE)
         Yd[row] = (float)partSum;
+
 }
 
 
