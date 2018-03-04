@@ -34,7 +34,7 @@ functions in the CPU code.
 \section{Naive Design}
 \vspace{-0.25cm}
 
-\qquad To calculate the matrix vector multiplication of $Ax=y$ when A is a
+\qquad To calculate the matrix vector multiplication of $Ax=y$ where A is a
 $n \times n$ matrix, x is a $n \times 1$ vector, and y is a $n \times 1$
 vector. The naive approach is to create a thread to compute each element in
 the y vector. That thread then loads all the elements of the x vector as
@@ -44,11 +44,13 @@ vector y.
 
 So two values are loaded from global memory for every two floating
 point operations, so the arithmetic intensity of the algorithm is 1. Which
-means the code is memory bound, because if only uses 10 of the available 8800
-GFLOPs. Since the GTX 1080 GPU has a peak processing rate of 8800 GFLOPs and
-the memory bandwidth on the device is 320 GB/s, to achieve the peak
-performance rate 880 floating point operations must be computer per load
-operation. 
+means the code is memory bound, because it only uses 10 of the available 8800
+GFLOPs. To achieve the peak
+performance rate 880 floating point operations must be computed per load
+operation, since the GTX 1080 GPU has a peak processing rate of 8800 GFLOPs and
+the memory bandwidth on the device is 320 GB/s. Another algorithm will be
+applied in the next section that uses shared memory to increase the
+arithmetic intensity.  
 
 \vspace{1cm}
 \begin{algorithm}[H]
