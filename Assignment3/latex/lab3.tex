@@ -19,6 +19,7 @@ Multiplication}
 \author{Sarah Peachey \& Nathan Schomer}
 \maketitle
 
+
 \textbf{\textit{Abstract:}} GPU's can process SIMD code very quickly because
 it can run many threads on different data with the same instructions. First
 the CPU must create resources on the GPU and copy the data over, then the
@@ -33,6 +34,7 @@ functions in the CPU code.
 \vspace{-1.5cm}
 \section{Naive Design}
 \vspace{-0.25cm}
+
 
 \qquad To calculate the matrix vector multiplication of $Ax=y$ where A is a
 $n \times n$ matrix, x is a $n \times 1$ vector, and y is a $n \times 1$
@@ -50,7 +52,7 @@ performance rate 880 floating point operations must be computed per load
 operation, since the GTX 1080 GPU has a peak processing rate of 8800 GFLOPs and
 the memory bandwidth on the device is 320 GB/s. Another algorithm will be
 applied in the next section that uses shared memory to increase the
-arithmetic intensity.  
+arithmetic intensity. 
 
 \vspace{1cm}
 \begin{algorithm}[H]
@@ -72,36 +74,76 @@ arithmetic intensity.
 \section{Shared Memory Design}
 
 \vspace{-0.4cm}
-\qquad words 
 
+%% PUT WORDS HERE %%
+The shared memory version of the matrix-vector multiplication
+algorithm described above takes the same inputs and produces
+the same result. However, this result is calculated in small
+pieces known as "tiles". This tiled approach to matrix-vector
+multiplication leverages spatial locality of the operands.
+For a tile of size $n \times n$, a thread block of size $n \times n$
+will be created and each thread will load an element from the
+vector into shared memory 
+and a single column of these threads will load elements from the
+vector into shared memory. The number of thread blocks (block grid
+height) will be calculated with $\frac{MATRIX\_HEIGHT}{TILE\_SIZE}$.
+An additional tile will be added to the grid if these are not evenly
+divisible. 
 
+Once in shared memory, the threads can perform matrix-vector
+multiplication on the current tile and add the partial sum
+to the resultant vector. Once all tiles are calculated,
+the result vector (of size $n \times 1$) will contain the result.
+A snippet of the kernel is included on the following page.
+
+The arithmetic intensity of this is much higher since the number
+of loads from global memory is reduced but the number of floating
+point operations remain the same. This can be calculated by 
+$\frac{2\times n\times n}{n\times n+n}$. When $n=1024$ the arithmetic
+intensity is approximately $2$\dots\ a $2\times$ improvement over the naive
+method. This results in a performance of 20 FLOPS.
+
+%%%%%%%%%%%%%%%%%%%%
+
+\newpage
 \vspace{1cm}
-\begin{algorithm}[H]
-	\KwData{start\_x, end\_x, num\_traps, height}
- 	\KwResult{estimated integral of function between start\_x and end\_x}
- 	initialization\;
-    \For{\texttt{i <  num\_threads}}{
-  	    pack argument struct for thread i\;
-   	}
+\begin{verbatim}
+// moves tile across matrix
+for(k=0; k<MATRIX_SIZE; k+=TILE_SIZE) {
+    // check M edge conditions for this tile
+    if(k + tileCol < MATRIX_SIZE && row < MATRIX_SIZE)
+        M_shared[tileRow][tileCol] = Ad[row*MATRIX_SIZE + k + tileCol];
+    else
+        M_shared[tileRow][tileCol] = 0.0f;
 
-    \For{\texttt{i < num\_threads}}{
-  	    create thread i\;
-        serially calculate sub-trapezoid i\;
-   	}
+    if (k + tileCol < MATRIX_SIZE)
+        N_shared[tileCol] = Xd[k+tileCol];
+    else
+        N_shared[tileCol] = 0.0f;
 
-    \For{\texttt{i < num\_threads}}{
-        join each thread\;
-        global\_sum = global\_sum + thread\_sum;
-    }
-\end{algorithm}
+    __syncthreads();
 
+    for(temp = 0; temp < TILE_SIZE; temp++)
+        partSum += M_shared[tileRow][temp] * N_shared[temp];
+
+    __syncthreads();
+}
+
+if (row < MATRIX_SIZE)
+    Yd[row] = (float)partSum;
+\end{verbatim}
 
 \pagebreak
 \vspace{-0.6cm}
 \section{Discussion of speed up}
 \vspace{-0.4cm}
-\qquad words 
 
+\qquad Speed-up was calculated for each version of the kernel by dividing the 
+serial run-time by the parallelized run-time as seen in Equation 1. 
+As seen by the speed-up ratios in Table 1, a trend of increased speed-up
+with increased matrix size was found. This is to be expected since
+an increased number of FLOPs on the GPU decreases the impact of kernel initialization
+and related GPGPU overhead.
 
 \begin{equation}
     s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
@@ -111,13 +153,12 @@ arithmetic intensity.
 \centering
 \begin{tabular}{@{}|l|c|c|}
 \hline
-Thread Count & Global Speed-Up & Shared Speed-Up\\ \hline
-2  &  &  \\ \hline 
-4  &  &  \\ \hline 
-8  &  &  \\ \hline 
-16 &  &  \\ \hline 
+Size & Global Speed-Up & Shared Speed-Up\\ \hline
+$512\times 512$    & 3.85 & 6.42 \\ \hline 
+$1024\times 1024$  & 3.02 & 4.78 \\ \hline 
+$2048\times 2048$  & 6.73 & 5.20 \\ \hline 
 \end{tabular}
-\caption{Average Speed-Up over 10 Iterations}
+\caption{Speed-Up calculated on Xunil-05}
 \end{table}
 
 
