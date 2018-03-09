@@ -94,14 +94,42 @@ create_grids(GRID_STRUCT *grid_for_cpu, GRID_STRUCT *grid_for_gpu)
 
 /* Edit this function skeleton to solve the equation on the device. Store the results back in the my_grid->element data structure for comparison with the CPU result. */
 void 
-compute_on_device(GRID_STRUCT *my_grid)
+compute_on_device(GRID_STRUCT *src)
 {
+	GRID_STRUCT *temp = (GRID_STRUCT *)malloc(sizeof(GRID_STRUCT));
+	GRID_STRUCT *dest = (GRID_STRUCT *)malloc(sizeof(GRID_STRUCT));
+	dest->dimension = GRID_DIMENSION;
+	dest->dimension = src->dimension *src->dimension; 
+	double diff; 
+	//allocate memory for src, dest, and diff on GPU 
+
+	//copy memory for src to the GPU 
+
+	int done =0; 
+	while(!done){
+
+	//launch the kernel 
+
+	//copy diff from the GPU only a single value 
+
+	if(diff<(diff/src->dimension))
+		done=1; 
+	//flip flop the pointers 
+	temp=src; 
+	src=dest; 
+	dest=temp; 
+	
+	}
+	//Copy dest from the GPU, because we need the final output 
+	src=dest; //because the outer code checks this struct. 
+	//free memory on GPU 
+
 }
 
 /* The main function */
 int 
 main(int argc, char **argv)
-{	
+{	 
 	/* Generate the grid */
 	GRID_STRUCT *grid_for_cpu = (GRID_STRUCT *)malloc(sizeof(GRID_STRUCT)); // The grid data structure
 	GRID_STRUCT *grid_for_gpu = (GRID_STRUCT *)malloc(sizeof(GRID_STRUCT)); // The grid data structure
