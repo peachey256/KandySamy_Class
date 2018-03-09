@@ -1,13 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
+#include <sys/time.h>
 #include <string.h>
 #include <math.h>
 #include <float.h>
-#include <time.h>
 
 // includes, kernels
-__constant__ float n_c; // allocation on the kernel
+__constant__ int * n_c; // allocation on the kernel
 #include "vector_dot_product_kernel.cu"
 
 void run_test(unsigned int);
@@ -72,13 +71,13 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	float * result = NULL;
  
 	//allocate space on the GPU globabl memory 
-	cudaMalloc((void**)&A_on_device, num_element*sizeof(float)); 
-	cudaMalloc((void**)&B_on_device, num_element*sizeof(float)); 
+	cudaMalloc((void**)&A_on_device, num_elements*sizeof(float)); 
+	cudaMalloc((void**)&B_on_device, num_elements*sizeof(float)); 
 	cudaMalloc((void**)&C_on_device, sizeof(float)); 
 
 	//copy the values over to GPU
-	cudaMemcpy(A_on_device, A_on_host, num_element*sizeof(float), cudaMemcpyHostToDevice); 
-	cudaMemcpy(B_on_device, B_on_host, num_element*sizeof(float), cudaMemcpyHostToDevice); 
+	cudaMemcpy(A_on_device, A_on_host, num_elements*sizeof(float), cudaMemcpyHostToDevice); 
+	cudaMemcpy(B_on_device, B_on_host, num_elements*sizeof(float), cudaMemcpyHostToDevice); 
 
 	//set up grid and TB
 	int max_TB_size=1024; 
@@ -104,12 +103,12 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	gettimeofday(&start, NULL);
 
 	//copy the constant to GPU
-	cudaMemcpyToSymbol(n_c, num_elements, sizeof(int)); 
+	cudaMemcpyToSymbol(n_c, &num_elements, sizeof(int)); 
 	
 	//launch the kernel
 	vector_dot_product<<grid, thread_block>>(A_on_device, B_on_device, C_on_device); 
 	cudaThreadSynchronize();
-	check_for_error("KERNEL FAILURE");
+	//check_for_error("KERNEL FAILURE");
 
 
 	gettimeofday(&stop, NULL);
@@ -123,16 +122,16 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	cudaFree(A_on_device);
 	cudaFree(B_on_device); 
 	cudaFree(C_on_device);  	
-	 return result;
+	return *result;
 }
  
 // This function checks for errors returned by the CUDA run time
 void 
 check_for_error(char *msg)
-{
+{ 
 	cudaError_t err = cudaGetLastError();
 	if(cudaSuccess != err){
 		printf("CUDA ERROR: %s (%s). \n", msg, cudaGetErrorString(err));
 		exit(EXIT_FAILURE);
-	}
+ 	}
 } 

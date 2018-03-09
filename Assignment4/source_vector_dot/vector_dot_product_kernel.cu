@@ -7,32 +7,31 @@
 
 __global__ void vector_dot_product(float* Ad, float* Bd, float* Cd)
 {
-	k=blockDim.x*gridDim.x; 
-	tid=threadIdx.x+(blockDim.x+blockIdx.x); 
-   __shared__ double C_shared[k];
-	num_strides = n_c/k; 
-	if (n%k>0)
+	int k=blockDim.x*gridDim.x; 
+	int tid=threadIdx.x+(blockDim.x+blockIdx.x); 
+    __shared__ double C_shared[k];
+	int num_strides = *(n_c)/k; 
+	if (*(n_c)%k>0)
 		num_strides++; 
 	C_shared[tid]=0; // C is the size the number of threads 
 	int i; 
 	for(i=0; i<num_strides; i++)
-		if(tid+(k*i)<n)
-			C_shared[tid]+=(a[tid+(k*i)]*b[tid+(k*i)]; 
-	/*Now everything is multiplied and loaded into shared memory that is the
+		if(tid+(k*i)<*(n_c))
+			C_shared[tid]+=((double)Ad[tid+(k*i)]*(double)Bd[tid+(k*i)]); 
+	 /*Now everything is multiplied and loaded into share d memory that is the
  	* size of k number of threads, and reduction needs to be applied to get the
  	* answer*/
 	__syncthreads();
-	depth=1; 
-	int i; 
-	for(i=0, 2**i<k, i++){
+	int depth=1; 
+	int stride; 
+	for(i=0; pow(2,i)<k; i++){
 		stride=k/(2*depth); 
 		if(tid<stride)
 			C_shared[tid]+=C_shared[tid+stride]; 
 		depth++; 
 		__syncthreads();	
 	}
-	if(tid==0)
-		Cd=C_shared[tid]; //copy back to global memory
+	*Cd=(float)C_shared[0]; //copy back to global memory
 
 }
 
