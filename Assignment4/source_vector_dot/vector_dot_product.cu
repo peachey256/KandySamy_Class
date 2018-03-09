@@ -45,10 +45,17 @@ run_test(unsigned int num_elements)
 	}
 	
 	printf("Generating dot product on the CPU. \n");
+	struct timeval start, stop; 
+	gettimeofday(&start, NULL);
+	
 	float reference = compute_gold(A, B, num_elements);
-    
+    gettimeofday(&stop, NULL);
+	printf("CPU Execution time = %fs. \n", (float)(stop.tv_sec - start.tv_sec+\\
+                (stop.tv_usec - start.tv_usec)/(float)1000000));
+
+
 	/* Edit this function to compute the result vector on the GPU. 
-       The result should be placed in the gpu_result variable. */
+        The result should be placed in the gpu_result variable. */
 	float gpu_result = compute_on_device(A, B, num_elements);
 
 	printf("Result on CPU: %f, result on GPU: %f. \n", reference, gpu_result);
@@ -68,7 +75,7 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
    float * A_on_device=NULL; 
 	float * B_on_device=NULL; 
 	float * C_on_device=NULL; 
-	float * result = NULL;
+	float * result=0;
  
 	//allocate space on the GPU globabl memory 
 	cudaMalloc((void**)&A_on_device, num_elements*sizeof(float)); 
@@ -97,6 +104,7 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 
 	dim3 thread_block(TB_size); 
 	dim3 grid(num_TB); 
+	int thread_count=TB_size*num_TB; 
 	
 	printf("performing vector dot product on the GPU using shared memory and a constant \n");
 	struct timeval start, stop; 
@@ -106,7 +114,7 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	cudaMemcpyToSymbol(n_c, &num_elements, sizeof(int)); 
 	
 	//launch the kernel
-	vector_dot_product<<grid, thread_block>>(A_on_device, B_on_device, C_on_device); 
+	vector_dot_product<<<grid, thread_block, thread_count>>>(A_on_device, B_on_device, C_on_device); 
 	cudaThreadSynchronize();
 	//check_for_error("KERNEL FAILURE");
 
@@ -117,7 +125,6 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 
 	//copy answer
 	cudaMemcpy(result, C_on_device, sizeof(float), cudaMemcpyDeviceToHost);
-
 	//free up the GPU memory 
 	cudaFree(A_on_device);
 	cudaFree(B_on_device); 

@@ -9,7 +9,7 @@ __global__ void vector_dot_product(float* Ad, float* Bd, float* Cd)
 {
 	int k=blockDim.x*gridDim.x; 
 	int tid=threadIdx.x+(blockDim.x+blockIdx.x); 
-    __shared__ double C_shared[k];
+    extern __shared__ double C_shared[];
 	int num_strides = *(n_c)/k; 
 	if (*(n_c)%k>0)
 		num_strides++; 
@@ -24,7 +24,7 @@ __global__ void vector_dot_product(float* Ad, float* Bd, float* Cd)
 	__syncthreads();
 	int depth=1; 
 	int stride; 
-	for(i=0; pow(2,i)<k; i++){
+	for(i=1; i<k; i*=2){
 		stride=k/(2*depth); 
 		if(tid<stride)
 			C_shared[tid]+=C_shared[tid+stride]; 
