@@ -6,7 +6,6 @@
 #include <float.h>
 
 // includes, kernels
-__constant__ int * n_c; // allocation on the kernel
 #include "vector_dot_product_kernel.cu"
 
 void run_test(unsigned int);
@@ -72,10 +71,10 @@ run_test(unsigned int num_elements)
 float 
 compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 {
-   float * A_on_device=NULL; 
+    float * A_on_device=NULL; 
 	float * B_on_device=NULL; 
 	float * C_on_device=NULL; 
-	float * result=0;
+	float result = 0;
  
 	//allocate space on the GPU globabl memory 
 	cudaMalloc((void**)&A_on_device, num_elements*sizeof(float)); 
@@ -124,12 +123,14 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
                 (stop.tv_usec - start.tv_usec)/(float)1000000));
 
 	//copy answer
-	cudaMemcpy(result, C_on_device, sizeof(float), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&result, C_on_device, sizeof(float), cudaMemcpyDeviceToHost);
+
 	//free up the GPU memory 
 	cudaFree(A_on_device);
 	cudaFree(B_on_device); 
 	cudaFree(C_on_device);  	
-	return *result;
+	
+    return result;
 }
  
 // This function checks for errors returned by the CUDA run time
