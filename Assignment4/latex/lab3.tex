@@ -1,0 +1,100 @@
+\documentclass[12pt]{article}
+\renewcommand{\baselinestretch}{1.5}
+\usepackage[utf8]{inputenc}
+
+\usepackage{hyperref}
+\hypersetup{linktoc=all}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{algorithm2e}
+\usepackage{graphicx}
+\usepackage{float}
+
+\begin{document}
+
+\title{Parallel Processing Lab 4: \\Vector Dot Product}
+\author{Sarah Peachey \& Nathan Schomer}
+\maketitle
+
+
+\textbf{\textit{Abstract:}} A vector dot product is the element wise
+multiplication and then summation of two vectors with n elements. The
+summation of all the elements is a form of reduction. The best form of
+reduction is one that tries reduce branch divergence by not dividing warps
+until only one warp is left.  
+\newpage
+
+\vspace{-1.5cm}
+\section{Design}
+\vspace{-0.25cm}
+
+
+\qquad For a given input value, n elements are created. If n is greater than
+the possible number of threads, then a stride is needed to bring all the
+elements into shared memory. Each thread initializes a spot in the
+$C\_shared$
+vector to zero then brings in the A and B value multiplies them and
+accumulates them the $C\_shared$ memory vector. Reduction is then performed on
+the $C\_shared$ vector by splitting the vector in half and using the first
+half of the threads to add the second half of the data to the first half of
+the data. The first half is then halved over and over again. Branch
+divergence does not occur until the size of the reduction is less than one
+warp. Then the final answer is stored in the zeroeth element of the
+$C\_shared$
+vector, that is moved to global memory and copied back to the CPU. 
+
+\vspace{1cm}
+\begin{algorithm}[H]
+	\KwData{Ad, Bd, Cd}
+ 	\KwResult{kernel to calculate the vector dot product}
+ 	calculate number of threads (k)\; 
+	calculate the tid\; 
+	create shared C vector\; 
+	calculate number of strides\; 
+	initialization shared memory\;
+	\For{i = number of strides}{
+		C[tid]+=Ad[tid+(k*i)]*Bd[tid+(k*i)]\;
+	}
+	now the element wise multiplication is in shared memory\;
+	perform reduction\;
+	\For{depth=1; depth<k; depth*=2}{
+		stride=k/(2*depth)\;
+		if(tid<stride)
+			C[tide]+=C[tid+shared]\; 
+		synch\;
+	}
+	Cd=C[0]\;
+\end{algorithm}
+
+\pagebreak
+\vspace{-0.6cm}
+\section{Discussion of speed up}
+\vspace{-0.4cm}
+
+\qquad Speed-up was calculated for the vector dot roduct GPU and CPU code
+and the speed up was calculated with, Equation 1. 
+As seen by the speed-up ratios in Table 1, a trend of increased speed-up
+with increased matrix size was found. This is to be expected since
+an increased number of FLOPs on the GPU decreases the impact of kernel initialization
+and related GPGPU overhead.
+
+\begin{equation}
+    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
+\end{equation}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}|l|c|}
+\hline
+Number of Elements& Speed-Up \\ \hline
+$10^5$  & 0.00  \\ \hline 
+$10^6$  & 0.00  \\ \hline 
+$10^7$  & 0.00  \\ \hline 
+\end{tabular}
+\caption{Speed-Up calculated on Xunil-05}
+\end{table}
+
+
+\end{document}
