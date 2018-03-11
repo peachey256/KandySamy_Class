@@ -5,7 +5,7 @@
 #include <math.h>
 #include <float.h>
 
-#define THREAD_COUNT 1024 
+#define THREAD_COUNT 1024//4096 
 // includes, kernels
 #include "vector_dot_product_kernel.cu"
 void run_test(unsigned int);
@@ -105,12 +105,13 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	dim3 grid(num_TB); 
 	
 	printf("performing vector dot product on the GPU using shared memory and a constant \n");
-	struct timeval start, stop; 
+	struct timeval start, start2, stop; 
 	gettimeofday(&start, NULL);
 
 	//copy the constant to GPU
 	cudaMemcpyToSymbol(n_c, &num_elements, sizeof(int)); 
-	
+
+	 gettimeofday(&start2, NULL);
 	//launch the kernel
 	vector_dot_product<<<grid, thread_block>>>(A_on_device, B_on_device, C_on_device); 
 	cudaThreadSynchronize();
@@ -121,6 +122,8 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	printf("Execution time = %fs. \n", (float)(stop.tv_sec - start.tv_sec+\\
                 (stop.tv_usec - start.tv_usec)/(float)1000000));
 
+	printf("Execution time without constant transfer= %fs. \n", (float)(stop.tv_sec - start2.tv_sec+\\
+	                (stop.tv_usec - start2.tv_usec)/(float)1000000));
 	//copy answer
 	cudaMemcpy(&result, C_on_device, sizeof(float), cudaMemcpyDeviceToHost);
 	
