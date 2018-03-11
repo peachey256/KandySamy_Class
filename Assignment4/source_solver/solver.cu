@@ -96,12 +96,12 @@ create_grids(GRID_STRUCT *grid_for_cpu, GRID_STRUCT *grid_for_gpu)
 void 
 compute_on_device(GRID_STRUCT *src)
 {
-	GRID_STRUCT *temp = (GRID_STRUCT *)malloc(sizeof(GRID_STRUCT));
+	//GRID_STRUCT *temp = (GRID_STRUCT *)malloc(sizeof(GRID_STRUCT));
 	GRID_STRUCT *dest = (GRID_STRUCT *)malloc(sizeof(GRID_STRUCT));
 	dest->dimension = GRID_DIMENSION;
 	dest->dimension = src->dimension *src->dimension; 
 	
-    double diff; 
+    double diff = 0; 
     double *Diff_on_device;
     float  *A_on_device;
     float  *B_on_device;
@@ -112,8 +112,8 @@ compute_on_device(GRID_STRUCT *src)
     cudaMalloc((void**)&B_on_device, GRID_DIMENSION*sizeof(float));
     cudaMalloc((void**)&Diff_on_device, 1*sizeof(double));
    
-    cudaMemcpy(A_on_device, temp->element, GRID_DIMENSION*sizeof(float), cudaMemcpyHostToDevice);
-    //cudaMemcpy(B_on_device, dest->element, GRID_DIMENSION*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(A_on_device, src->element, GRID_DIMENSION*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
 
     // setup grid and thread blocks
     int threadCnt;
@@ -134,8 +134,10 @@ compute_on_device(GRID_STRUCT *src)
     dim3 thread_block(threadCnt, threadCnt);
     dim3 grid(blockCnt, blockCnt);
 
+    printf("setting up blocks of size %dx%d\n", threadCnt, threadCnt);
+    printf("setting up grid of size %dx%d\n", blockCnt, blockCnt);
 
-	int done = 0;
+	int done = 0, cnt = 0;
 	while(!done){
 
         //launch the kernel
@@ -147,7 +149,9 @@ compute_on_device(GRID_STRUCT *src)
         //copy diff from the GPU only a single value 
         cudaMemcpy(&diff, Diff_on_device, 1*sizeof(double), cudaMemcpyDeviceToHost);
 
-        if( diff/(GRID_DIMENSION*GRID_DIMENSION) < TOLERANCE ) {
+        printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
+
+        if( (diff/(GRID_DIMENSION*GRID_DIMENSION)) < TOLERANCE ) {
             done = 1;
             break;
         }
@@ -157,12 +161,12 @@ compute_on_device(GRID_STRUCT *src)
         A_on_device = B_on_device;
         B_on_device = tmpPtr;
 	}
-	//Copy dest from the GPU, because we need the final output 
-
+	
+    //Copy dest from the GPU, because we need the final output 
     cudaMemcpy(dest->element, B_on_device, GRID_DIMENSION*sizeof(float), cudaMemcpyDeviceToHost);
-	src=dest; //because the outer code checks this struct. 
-	//free memory on GPU 
-
+	src=dest;
+	
+    //free memory on GPU 
     cudaFree(A_on_device);
     cudaFree(B_on_device);
     cudaFree(Diff_on_device);

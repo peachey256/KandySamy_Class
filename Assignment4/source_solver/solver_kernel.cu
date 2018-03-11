@@ -6,16 +6,33 @@
 __global__ void 
 solver_kernel_naive(float *src, float *dest, double *diff)
 {
-//update the values for each thread, probabaly will need a stride.
+    //update the values for each thread, probabaly will need a stride.
     int blockID      = blockIdx.y  * gridDim.x  + blockIdx.x;
-    int threadOffset = threadIdx.y * blockDim.x + threadIdx.x;
-    int threadId     = blockID*(blockDim.y * blockDim.x) + threadOffset;
+    int blockOffset  = blockID*(blockDim.y * blockDim.x);
 
-    //calculate diff
+    // offset by one b/c of edge buffer
+    int ty = threadIdx.y + 1;
+    int tx = threadIdx.x + 1;
+
+    float tmp = dest[blockOffset+ty*blockDim.x+tx];
+
+    dest[blockOffset+ty*blockDim.x+tx] = 
+        0.2*(src[blockOffset+ (ty)  *blockDim.x+(tx)  ]+
+             src[blockOffset+ (ty-1)*blockDim.x+(tx)  ]+
+             src[blockOffset+ (ty+1)*blockDim.x+(tx)  ]+
+             src[blockOffset+ (ty)  *blockDim.x+(tx-1)]+
+             src[blockOffset+ (ty)  *blockDim.x+(tx+1)]);
+
+    //calculate diff and add to total diff
+    double newDiff = *diff + dest[blockOffset+ty*blockDim.x+tx] - tmp;
+    if(newDiff < 0) 
+        newDiff *= -1;
+    atomicAdd(diff, newDiff);
 }
 
 __global__ void 
-solver_kernel_optimized(){
+solver_kernel_optimized()
+{
 //copy src and dist to shared 
 
 //update the values 
