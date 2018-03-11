@@ -4,6 +4,7 @@
 #define GRID_DIMENSION 4096
 #define TOLERANCE 0.01 // Tolerance value for convergence
 #define UPPER_BOUND_ON_GRID_VALUE 100// The largest value in the grid
+#define THREADS_PER_BLOCK 1024
 
 typedef struct grid_struct{
 	int num_elements; // Number of points in the grid

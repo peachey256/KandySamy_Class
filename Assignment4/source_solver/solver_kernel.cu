@@ -4,11 +4,14 @@
 #include <stdio.h>
 
 __global__ void 
-solver_kernel_naive(GRID_STRUCT *src, GRID_STRUCT *dest, double diff)
-//update the values for each thread, probabaly will need a stride. 
+solver_kernel_naive(float *src, float *dest, double *diff)
+{
+//update the values for each thread, probabaly will need a stride.
+    int blockID      = blockIdx.y  * gridDim.x  + blockIdx.x;
+    int threadOffset = threadIdx.y * blockDim.x + threadIdx.x;
+    int threadId     = blockID*(blockDim.y * blockDim.x) + threadOffset;
 
-//calculate diff
-
+    //calculate diff
 }
 
 __global__ void 
