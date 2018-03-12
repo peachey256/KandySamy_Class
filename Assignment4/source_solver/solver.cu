@@ -164,7 +164,7 @@ compute_on_device(GRID_STRUCT *src)
 	
     //Copy dest from the GPU, because we need the final output 
     cudaMemcpy(dest->element, B_on_device, GRID_DIMENSION*sizeof(float), cudaMemcpyDeviceToHost);
-	src=dest;
+	 src=dest;
 	
     //free memory on GPU 
     cudaFree(A_on_device);
