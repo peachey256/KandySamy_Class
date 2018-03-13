@@ -101,59 +101,48 @@ compute_on_device(GRID_STRUCT *src)
 	dest->dimension = GRID_DIMENSION;
 	dest->dimension = src->dimension *src->dimension; 
 	
-    double diff = 0; 
+    double diff = 0;
+    double *diffPtr = &diff;
+
     double *Diff_on_device;
     float  *A_on_device;
     float  *B_on_device;
     float  *tmpPtr;
 	
     //allocate memory for src, dest, and diff on GPU 
-    cudaMalloc((void**)&A_on_device, GRID_DIMENSION*sizeof(float));
-    cudaMalloc((void**)&B_on_device, GRID_DIMENSION*sizeof(float));
-    cudaMalloc((void**)&Diff_on_device, 1*sizeof(double));
+    cudaMalloc((void**)&A_on_device, GRID_DIMENSION*GRID_DIMENSION*sizeof(float));
+    cudaMalloc((void**)&B_on_device, GRID_DIMENSION*GRID_DIMENSION*sizeof(float));
+    cudaMalloc((void**)&Diff_on_device, sizeof(double));
    
-    cudaMemcpy(A_on_device, src->element, GRID_DIMENSION*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemcpy(A_on_device, src->element, GRID_DIMENSION*GRID_DIMENSION*sizeof(float), cudaMemcpyHostToDevice);
 
     // setup grid and thread blocks
-    int threadCnt;
-    int blockCnt;
-    int grid_dim = GRID_DIMENSION - 2;
-
-    if (grid_dim <= THREADS_PER_BLOCK) {
-        threadCnt = grid_dim;
-        blockCnt = 1;
-    }
-    else {
-        threadCnt = THREADS_PER_BLOCK;
-        blockCnt = floor(grid_dim / THREADS_PER_BLOCK);
-        if (grid_dim % THREADS_PER_BLOCK)
-            blockCnt++;
-    }
-
-    dim3 thread_block(threadCnt, threadCnt);
-    dim3 grid(blockCnt, blockCnt);
-
-    printf("setting up blocks of size %dx%d\n", threadCnt, threadCnt);
-    printf("setting up grid of size %dx%d\n", blockCnt, blockCnt);
+    dim3 grid(GRID_SIZE, GRID_SIZE);
+    dim3 thread_block(BLOCK_SIZE, BLOCK_SIZE);
+ 
+    printf("Creating grid of size %dx%d blocks\n", GRID_SIZE, GRID_SIZE);
+    printf("Creating block of size %dx%d threads\n", 
+            BLOCK_SIZE, BLOCK_SIZE);
 
 	int done = 0, cnt = 0;
 	while(!done){
 
         //launch the kernel
+        diff = (double)0;
+        cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
+        printf("executing kernel...\n");
         solver_kernel_naive<<<grid, thread_block>>>(A_on_device, B_on_device,
                 Diff_on_device);
 
         cudaThreadSynchronize();
 
         //copy diff from the GPU only a single value 
-        cudaMemcpy(&diff, Diff_on_device, 1*sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
 
         printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
 
         if( (diff/(GRID_DIMENSION*GRID_DIMENSION)) < TOLERANCE ) {
             done = 1;
-            break;
         }
 
         // most boring game of ping-pong I've ever played
@@ -163,7 +152,7 @@ compute_on_device(GRID_STRUCT *src)
 	}
 	
     //Copy dest from the GPU, because we need the final output 
-    cudaMemcpy(dest->element, B_on_device, GRID_DIMENSION*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(dest->element, A_on_device, GRID_DIMENSION*GRID_DIMENSION*sizeof(float), cudaMemcpyDeviceToHost);
 	src=dest;
 	
     //free memory on GPU 
@@ -190,7 +179,6 @@ main(int argc, char **argv)
 	printf("Using the cpu to solve the grid. \n");
 	compute_gold(grid_for_cpu);  // Use CPU to solve 
 	
-
 	// Use the GPU to solve the equation
 	compute_on_device(grid_for_gpu);
 	

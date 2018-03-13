@@ -10,24 +10,30 @@ solver_kernel_naive(float *src, float *dest, double *diff)
     int blockID      = blockIdx.y  * gridDim.x  + blockIdx.x;
     int blockOffset  = blockID*(blockDim.y * blockDim.x);
 
-    // offset by one b/c of edge buffer
-    int ty = threadIdx.y + 1;
-    int tx = threadIdx.x + 1;
+    int stride = gridDim.x * blockDim.x;
+    int gridWidth = blockDim.x * gridDim.x;
 
-    float tmp = dest[blockOffset+ty*blockDim.x+tx];
+    int ty = blockDim.y * blockIdx.y + threadIdx.y;
+    int tx = blockDim.x * blockIdx.x + threadIdx.x;
 
-    dest[blockOffset+ty*blockDim.x+tx] = 
-        0.2*(src[blockOffset+ (ty)  *blockDim.x+(tx)  ]+
-             src[blockOffset+ (ty-1)*blockDim.x+(tx)  ]+
-             src[blockOffset+ (ty+1)*blockDim.x+(tx)  ]+
-             src[blockOffset+ (ty)  *blockDim.x+(tx-1)]+
-             src[blockOffset+ (ty)  *blockDim.x+(tx+1)]);
+    for( ty++ ; ty < GRID_DIMENSION; ty += stride) {
+        for( tx++ ; tx < GRID_DIMENSION; tx += stride) {
+            
+            float tmp = dest[ty * gridWidth + tx];
+            //float tmp = dest[blockOffset+ty*blockDim.x+tx];
 
-    //calculate diff and add to total diff
-    double newDiff = *diff + dest[blockOffset+ty*blockDim.x+tx] - tmp;
-    if(newDiff < 0) 
-        newDiff *= -1;
-    atomicAdd(diff, newDiff);
+            dest[ty * gridWidth + tx] = 
+                0.2*(src[ty * gridWidth + tx]+
+                     src[(ty+1) * gridWidth + tx]+
+                     src[(ty-1) * gridWidth + tx]+
+                     src[ty * gridWidth + (tx+1)]+
+                     src[ty * gridWidth + (tx-1)]);
+
+            //calculate diff and add to total diff
+            double newDiff = fabs(dest[ty*gridWidth + tx] - tmp);
+            atomicAdd(diff, newDiff);
+        }
+    }
 }
 
 __global__ void 
