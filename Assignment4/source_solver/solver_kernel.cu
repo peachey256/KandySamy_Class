@@ -20,7 +20,6 @@ solver_kernel_naive(float *src, float *dest, double *diff)
         for( tx++ ; tx < GRID_DIMENSION; tx += stride) {
             
             float tmp = dest[ty * gridWidth + tx];
-            //float tmp = dest[blockOffset+ty*blockDim.x+tx];
 
             dest[ty * gridWidth + tx] = 
                 0.2*(src[ty * gridWidth + tx]+
@@ -41,7 +40,6 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
 {
     // create some shared memory
     __shared__ float _src_shared[BLOCK_SIZE * BLOCK_SIZE];
-    __shared__ float _dst_shared[BLOCK_SIZE * BLOCK_SIZE];
 
     // find yo self in global
     int ty = blockDim.y * blockIdx.y + threadIdx.y;
@@ -60,26 +58,26 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
            
             // copy src and dest to shared
             _src_shared[threadLoc] =  src[ty * gridWidth + tx];
-            _dst_shared[threadLoc] = dest[ty * gridWidth + tx];
 
             // gotta wait for the slowpokes 
             __syncthreads();
             
             // don't run if we're on the border
             if ( tx && ty && tx<(blockDim.x) && ty<(blockDim.y) ) {
-                float tmp = _dst_shared[threadLoc];
+                float tmp = _src_shared[threadLoc];
 
-                _dst_shared[threadIdx.y * blockDim.x + threadIdx.x] = 
+                double newDest = 
                     0.2*(_src_shared[threadIdx.y     * blockDim.x + threadIdx.x]+
                          _src_shared[(threadIdx.y+1) * blockDim.x + threadIdx.x]+
                          _src_shared[(threadIdx.y-1) * blockDim.x + threadIdx.x]+
                          _src_shared[threadIdx.y     * blockDim.x + (threadIdx.x+1)]+
                          _src_shared[threadIdx.y     * blockDim.x + (threadIdx.x-1)]);
-
+                
+                dest[ty * gridWidth + tx] = newDest;
+                
                 // calculate diff and add to total diff
                 //  ... diff stays global
-                // this is going to introduce some thread divergence
-                double newDiff = fabs(_dst_shared[threadLoc] - tmp);
+                double newDiff = fabs(newDest - tmp);
                 atomicAdd(diff, newDiff);
             }
 

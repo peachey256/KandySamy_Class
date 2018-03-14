@@ -1,0 +1,150 @@
+\documentclass[12pt]{article}
+\renewcommand{\baselinestretch}{1.5}
+\usepackage[utf8]{inputenc}
+
+\usepackage{hyperref}
+\hypersetup{linktoc=all}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{algorithm2e}
+\usepackage{graphicx}
+\usepackage{float}
+
+\begin{document}
+
+\title{Parallel Processing Lab 4: \\Equation Solver}
+\author{Sarah Peachey \& Nathan Schomer}
+\maketitle
+
+
+\textbf{\textit{Abstract:}} Solving a simple partial
+differential equation on a grid involves a simple set 
+of operations which need to be performed on each element
+in the $n \times n$ grid. Each element is replaced
+with a weighted 
+average of itself and it's 4 adjacent, non-diagonal 
+neighbors. This process is performed iteratively 
+until convergence. This is when
+the sum of the operation's effects on the grid 
+drop below a certain threshold.
+When this operation is performed in-place
+on the grid, it's known as the Gauss-Seidel method.
+In order to parallelize this process, the operations
+can be performed in parallel using the Jacobi method.
+This leverages a "ping pong" style design by calculating
+each element independently of the others and then performing
+another iteration on the result. The Jacobi method also
+continues until the total difference of any iteration 
+drops below a set threshold.
+
+
+
+\newpage
+\vspace{-1.5cm}
+\section{Naive Design}
+\vspace{-0.25cm}
+
+Both the naive and the shared kernel designs implemented the Jacobi 
+method since it's operations can be easily parallelized. The naive
+design used only global memory. A $4 \times 4$ grid of $32 \times 32$
+thread blocks was created yielding a total of $16,384$ threads. 
+The smallest matrix to be tested is $1024 \times 1024$ with a total
+of $1048576$ elements. Since the threads available is less than 
+the matrix size, striding was required. For each iteration of the 
+naive Jacobi solver, each thread calculated the weighted sum of itself
+with its 4 adjacent elements from the source matrix. 
+The result is stored in the destination matrix.
+
+%\begin{equation}
+%    dest[y][x] = 0.2*(current + top + left + right + below)
+%\end{equation}
+
+The difference between the previous and the new destination value 
+is then added to a running sum of difference. Once all elements for
+the current matrix are calculated, the total difference is read back
+to the CPU and compared to a threshold. If the difference is still higher
+than the threshold, the source and destination matrices are swapped
+and the kernel is called again.
+
+Note - These operations are only performed for the inner (non-border) elements
+of the matrix.
+
+\vspace{1cm}
+\begin{algorithm}[H]
+	\KwData{src, dest, diff}
+ 	\KwResult{kernel to calculate Jacobi of src and store in dest}
+    find current location in matrix\;
+    calculate stride length\;
+
+    \For{ty = number of strides}{
+        \For{tx = number of strides}{
+            tmp = dest[tidy + ty*strideLen][tidx + tx*strideLen]\;
+            calculate weighted sum\;
+            diff = weighted sum - tmp\;
+        }
+    }
+\end{algorithm}
+
+\newpage
+\vspace{-1.5cm}
+\section{Shared Design}
+\vspace{-0.25cm}
+
+%\vspace{1cm}
+%\begin{algorithm}[H]
+%	\KwData{Ad, Bd, Cd}
+% 	\KwResult{kernel to calculate the vector dot product}
+% 	calculate number of threads (k)\; 
+%	calculate the tid\; 
+%	create shared C vector\; 
+%	calculate number of strides\; 
+%	initialization shared memory\;
+%	\For{i = number of strides}{
+%		C[tid]+=Ad[tid+(k*i)]*Bd[tid+(k*i)]\;
+%	}
+%	now the element wise multiplication is in shared memory\;
+%	perform reduction\;
+%	\For{stride=k; stride>0; stride/=2}{
+%		if(tid<stride)
+%			C[tide]+=C[tid+shared]\; 
+%		synch\;
+%	}
+%	Cd=C[0]\;
+%\end{algorithm}
+
+
+%\pagebreak
+\vspace{-0.6cm}
+\section{Results}
+\vspace{-0.4cm}
+
+%\qquad Speed-up was calculated for the vector dot roduct GPU and CPU code
+%and the speed up was calculated with, Equation 1. 
+%As seen by the speed-up ratios in Table 1, when 4096 threads are used there
+%is definitive speed up but the epsilon values were in the range of 10-50.
+%Whereas, where the code was ran with 1024 threads there was actually a slow
+%down do to the overhead, but the epsilon values were zero. Furthermore, time
+%was recorded for transfering the constant and without transfering the
+%constant and one can see that transferring data is clearly the bottle neck. 
+% 
+%\begin{equation}
+%    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
+%\end{equation}
+%
+%\begin{table}[H]
+%\centering
+%\begin{tabular}{@{}|l|c|c|}
+%\hline
+%Number of threads and Elements& Speed-Up with constant & Speed-Up without \\ \hline
+%4096 $10^5$  & 1.278  & 1.545 \\ \hline 
+%4096 $10^6$  & 2.370  & 2.708 \\ \hline 
+%4096 $10^7$  & 2.473  & 2.503 \\ \hline 
+%1024 $10^5$  & 0.698  & 0.758 \\ \hline
+%1024 $10^6$  & 0.747  & 0.780 \\ \hline
+%1024 $10^7$  & 0.634  & 0.639 \\ \hline
+%\end{tabular}
+%\caption{Speed-Up calculated on Xunil-05}
+%\end{table}
+\end{document}
