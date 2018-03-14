@@ -140,6 +140,25 @@ design, stride length is decreased by 1 because the tile needs
 \vspace{-0.4cm}
 
 % TODO: describe results
+As expected, large speedups were obtained with both kernel versions.
+The shared memory kernel yielded a small additional speedup over the
+naive kernel. Also the larger the matrix, the larger the speedups
+over the CPU version. Speedup was calculated using Equation 1.
+
+As seen in Table 1 and Table 2, the majority of the kernel execution time
+was taken up by the initial data transfer to the GPU. Without including
+the data transfer in the timing, speed-ups were much higher.
+
+The kernels were originally created with thread blocks of size $32 \times 32$
+with a grid size of $4 \times 4$. Adjusting that to 
+thread blocks of sizes $16 \times 16$ and a grid of size $8 \times 8$. 
+The smaller thread block with a larger grid yielded a speedup of 
+0.07 when the matrix was of size $4096 \times 4096$ using the
+shared memory kernel. The speedup for the same size matrix but with
+the naive kernel was 0.99. The speedup values less than one indicate
+that the smaller thread block size slows the kernels down. However,
+the change is so minute that the block size didn't really have much effect
+on run time. Large gains over the CPU version were still had.
 
 \begin{equation}
     s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
@@ -151,15 +170,27 @@ design, stride length is decreased by 1 because the tile needs
 \centering
 \begin{tabular}{@{}|l|c|c|}
 \hline
-Number of threads and Elements& Speed-Up with constant & Speed-Up without \\ \hline
-4096 $10^5$  & 1.278  & 1.545 \\ \hline 
-4096 $10^6$  & 2.370  & 2.708 \\ \hline 
-4096 $10^7$  & 2.473  & 2.503 \\ \hline 
-1024 $10^5$  & 0.698  & 0.758 \\ \hline
-1024 $10^6$  & 0.747  & 0.780 \\ \hline
-1024 $10^7$  & 0.634  & 0.639 \\ \hline
+Matrix Size (squared) & Naive Speed-Up  & Shared Memory Speed-Up \\ \hline
+$2048 \times 2048$      & 938.96          & 940.81  \\ \hline 
+$4096 \times 4096$      & 3201.55         & 3692.43 \\ \hline 
+$8192 \times 8192$      & 8533.79         & 9218.82 \\ \hline 
 \end{tabular}
-\caption{Speed-Up calculated on Xunil-05}
+\caption{Speed-Up calculated on Xunil-05. Doesn't include initial data transfer
+time}
 \end{table}
+
+% TODO: update results
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}|l|c|c|}
+\hline
+Matrix Size (squared) & Naive Speed-Up  & Shared Memory Speed-Up \\ \hline
+$2048 \times 2048$      & 135.33          & 297.87  \\ \hline 
+$4096 \times 4096$      & 236.70          & 370.58 \\ \hline 
+$8192 \times 8192$      & 326.95          & 324.87 \\ \hline 
+\end{tabular}
+\caption{Speed-Up calculated on Xunil-05 includes data transfer time}
+\end{table}
+
 
 \end{document}
