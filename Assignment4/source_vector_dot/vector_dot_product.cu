@@ -5,9 +5,9 @@
 #include <math.h>
 #include <float.h>
 
+#define THREAD_COUNT 1024//4096 
 // includes, kernels
 #include "vector_dot_product_kernel.cu"
-
 void run_test(unsigned int);
 float compute_on_device(float *, float *,int);
 void check_for_error(char *);
@@ -15,7 +15,7 @@ extern "C" float compute_gold( float *, float *, unsigned int);
 
 int 
 main( int argc, char** argv) 
-{
+{ 
 	if(argc != 2){
 		printf("Usage: vector_dot_product <num elements> \n");
 		exit(0);	
@@ -27,7 +27,7 @@ main( int argc, char** argv)
 
 void 
 run_test(unsigned int num_elements) 
-{
+ { 
 	// Obtain the vector length
 	unsigned int size = sizeof(float) * num_elements;
 
@@ -70,11 +70,11 @@ run_test(unsigned int num_elements)
 /* Edit this function to compute the dot product on the device using atomic intrinsics. */
 float 
 compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
-{
+{ 
     float * A_on_device=NULL; 
 	float * B_on_device=NULL; 
 	float * C_on_device=NULL; 
-	float result = 0;
+	float result = 5;
  
 	//allocate space on the GPU globabl memory 
 	cudaMalloc((void**)&A_on_device, num_elements*sizeof(float)); 
@@ -89,13 +89,13 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	int max_TB_size=1024; 
 	int max_grid_size=20; 
 	int TB_size, num_TB; 
-	if(num_elements < max_TB_size){
-		TB_size=num_elements; 
+	if(THREAD_COUNT < max_TB_size){
+		TB_size=THREAD_COUNT; 
 		num_TB=1; 
 	}else {
 		TB_size=max_TB_size; 
-		num_TB=num_elements/TB_size; 
-		if(num_elements%TB_size>0)
+		num_TB=THREAD_COUNT/TB_size; 
+		if(THREAD_COUNT%TB_size>0)
 			num_TB++; 
 		if(num_TB>max_grid_size)
 			num_TB=max_grid_size; 
@@ -103,17 +103,17 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 
 	dim3 thread_block(TB_size); 
 	dim3 grid(num_TB); 
-	int thread_count=TB_size*num_TB; 
 	
 	printf("performing vector dot product on the GPU using shared memory and a constant \n");
-	struct timeval start, stop; 
+	struct timeval start, start2, stop; 
 	gettimeofday(&start, NULL);
 
 	//copy the constant to GPU
 	cudaMemcpyToSymbol(n_c, &num_elements, sizeof(int)); 
-	
+
+	 gettimeofday(&start2, NULL);
 	//launch the kernel
-	vector_dot_product<<<grid, thread_block, thread_count>>>(A_on_device, B_on_device, C_on_device); 
+	vector_dot_product<<<grid, thread_block>>>(A_on_device, B_on_device, C_on_device); 
 	cudaThreadSynchronize();
 	//check_for_error("KERNEL FAILURE");
 
@@ -122,14 +122,15 @@ compute_on_device(float *A_on_host, float *B_on_host, int num_elements)
 	printf("Execution time = %fs. \n", (float)(stop.tv_sec - start.tv_sec+\\
                 (stop.tv_usec - start.tv_usec)/(float)1000000));
 
+	printf("Execution time without constant transfer= %fs. \n", (float)(stop.tv_sec - start2.tv_sec+\\
+	                (stop.tv_usec - start2.tv_usec)/(float)1000000));
 	//copy answer
 	cudaMemcpy(&result, C_on_device, sizeof(float), cudaMemcpyDeviceToHost);
-
+	
 	//free up the GPU memory 
 	cudaFree(A_on_device);
 	cudaFree(B_on_device); 
 	cudaFree(C_on_device);  	
-	
     return result;
 }
  
