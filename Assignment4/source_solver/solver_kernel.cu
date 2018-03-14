@@ -50,7 +50,7 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
     int gridWidth = blockDim.x  * gridDim.x;
 
     // subtract 2 from stride b/c of border
-    int stride = gridDim.x * blockDim.x - 2;
+    int stride = gridDim.x * blockDim.x - 1;
 
     // stride stride stride
     for( ; ty < GRID_DIMENSION - stride; ty += stride) {
@@ -82,7 +82,7 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
             }
 
             // copy dst_shared back to dest
-            dest[ty * gridWidth + tx] = _dst_shared[threadLoc];
+            // dest[ty * gridWidth + tx] = diff;
         }
     }
  

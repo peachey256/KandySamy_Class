@@ -92,59 +92,74 @@ of the matrix.
 \section{Shared Design}
 \vspace{-0.25cm}
 
-%\vspace{1cm}
-%\begin{algorithm}[H]
-%	\KwData{Ad, Bd, Cd}
-% 	\KwResult{kernel to calculate the vector dot product}
-% 	calculate number of threads (k)\; 
-%	calculate the tid\; 
-%	create shared C vector\; 
-%	calculate number of strides\; 
-%	initialization shared memory\;
-%	\For{i = number of strides}{
-%		C[tid]+=Ad[tid+(k*i)]*Bd[tid+(k*i)]\;
-%	}
-%	now the element wise multiplication is in shared memory\;
-%	perform reduction\;
-%	\For{stride=k; stride>0; stride/=2}{
-%		if(tid<stride)
-%			C[tide]+=C[tid+shared]\; 
-%		synch\;
-%	}
-%	Cd=C[0]\;
-%\end{algorithm}
+While the naive Jacobi kernel improved upon the serial CPU design,
+additional improvements can still be had. The most obvious deficiency
+of the naive kernel is the multiple accesses of each element within
+the source matrix. In the naive kernel, each non-border 
+element is accessed 5 times. These constant accesses of global memory
+substantially decreases the arithmetic intensity. Because individual 
+matrix elements are being access multiple times, we can reduce 
+the number of global memory reads by utilizing shared memory. 
+
+In the shared memory design, each thread in the current thread block
+reads it's corresponding element from global memory into shared memory. 
+Next, each thread will calculate the weighted average just as the naive 
+kernel but using shared memory instead of global. The difference 
+is still stored in global memory since it's only being written to.
+
+The only additional difference is the stride length. In the shared memory
+design, stride length is decreased by 1 because the tile needs 
 
 
-%\pagebreak
+% TODO: write shared pseudo code
+\vspace{1cm}
+\begin{algorithm}[H]
+	\KwData{src, dest, diff}
+ 	\KwResult{kernel to calculate Jacobi using shared memory}
+    allocate shared memory for src\;
+    find current location in matrix\;
+    calculate stride length\;
+    
+    copy element from global to shared\;
+
+    wait for all threads to finish copying\;
+
+    \For{ty = number of strides}{
+        \For{tx = number of strides}{
+            tmp = dest[tidy + ty*strideLen][tidx + tx*strideLen]\;
+            calculate weighted sum using shared memory\;
+            diff = weighted sum - tmp\;
+        }
+    }
+\end{algorithm}
+
+
+\pagebreak
 \vspace{-0.6cm}
 \section{Results}
 \vspace{-0.4cm}
 
-%\qquad Speed-up was calculated for the vector dot roduct GPU and CPU code
-%and the speed up was calculated with, Equation 1. 
-%As seen by the speed-up ratios in Table 1, when 4096 threads are used there
-%is definitive speed up but the epsilon values were in the range of 10-50.
-%Whereas, where the code was ran with 1024 threads there was actually a slow
-%down do to the overhead, but the epsilon values were zero. Furthermore, time
-%was recorded for transfering the constant and without transfering the
-%constant and one can see that transferring data is clearly the bottle neck. 
-% 
-%\begin{equation}
-%    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
-%\end{equation}
-%
-%\begin{table}[H]
-%\centering
-%\begin{tabular}{@{}|l|c|c|}
-%\hline
-%Number of threads and Elements& Speed-Up with constant & Speed-Up without \\ \hline
-%4096 $10^5$  & 1.278  & 1.545 \\ \hline 
-%4096 $10^6$  & 2.370  & 2.708 \\ \hline 
-%4096 $10^7$  & 2.473  & 2.503 \\ \hline 
-%1024 $10^5$  & 0.698  & 0.758 \\ \hline
-%1024 $10^6$  & 0.747  & 0.780 \\ \hline
-%1024 $10^7$  & 0.634  & 0.639 \\ \hline
-%\end{tabular}
-%\caption{Speed-Up calculated on Xunil-05}
-%\end{table}
+% TODO: describe results
+
+\begin{equation}
+    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
+\end{equation}
+
+
+% TODO: update results
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}|l|c|c|}
+\hline
+Number of threads and Elements& Speed-Up with constant & Speed-Up without \\ \hline
+4096 $10^5$  & 1.278  & 1.545 \\ \hline 
+4096 $10^6$  & 2.370  & 2.708 \\ \hline 
+4096 $10^7$  & 2.473  & 2.503 \\ \hline 
+1024 $10^5$  & 0.698  & 0.758 \\ \hline
+1024 $10^6$  & 0.747  & 0.780 \\ \hline
+1024 $10^7$  & 0.634  & 0.639 \\ \hline
+\end{tabular}
+\caption{Speed-Up calculated on Xunil-05}
+\end{table}
+
 \end{document}
