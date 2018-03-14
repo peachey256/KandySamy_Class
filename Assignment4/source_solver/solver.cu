@@ -9,6 +9,7 @@ Date modified: 3/4/2018
 #include <malloc.h>
 #include <time.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <math.h>
 #include "grid.h" // This file defines the grid data structure
 
@@ -16,6 +17,8 @@ Date modified: 3/4/2018
 #include "solver_kernel.cu"
 
 extern "C" void compute_gold(GRID_STRUCT *);
+
+float cpuTime;
 
 
 /* This function prints the grid on the screen */
@@ -101,8 +104,8 @@ compute_on_device(GRID_STRUCT *src)
 	dest->dimension = GRID_DIMENSION;
 	dest->dimension = src->dimension *src->dimension; 
 	
+	struct timeval start, stop; 
     double diff = 0;
-    double *diffPtr = &diff;
 
     double *Diff_on_device;
     float  *A_on_device;
@@ -114,6 +117,7 @@ compute_on_device(GRID_STRUCT *src)
     cudaMalloc((void**)&B_on_device, GRID_DIMENSION*GRID_DIMENSION*sizeof(float));
     cudaMalloc((void**)&Diff_on_device, sizeof(double));
    
+    gettimeofday(&start, NULL);
     cudaMemcpy(A_on_device, src->element, GRID_DIMENSION*GRID_DIMENSION*sizeof(float), cudaMemcpyHostToDevice);
 
     // setup grid and thread blocks
@@ -125,32 +129,39 @@ compute_on_device(GRID_STRUCT *src)
             BLOCK_SIZE, BLOCK_SIZE);
 
 	int done = 0, cnt = 0;
-	while(!done){
-
-        //launch the kernel
-        diff = (double)0;
-        cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
-        printf("executing kernel...\n");
-        solver_kernel_naive<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
-        //solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
-        
-        cudaThreadSynchronize();
-
-        //copy diff from the GPU only a single value 
-        cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
-
-        printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
-
-        if( (diff/(GRID_DIMENSION*GRID_DIMENSION)) < TOLERANCE ) {
-            done = 1;
-        }
-
-        // most boring game of ping-pong I've ever played
-        tmpPtr = A_on_device;
-        A_on_device = B_on_device;
-        B_on_device = tmpPtr;
-	}
 	
+	while(!done) {
+
+		//launch the kernel
+		diff = (double)5;
+		cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
+		printf("executing kernel...\n");
+		solver_kernel_naive<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
+		//solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
+		
+		cudaThreadSynchronize();
+
+		//copy diff from the GPU only a single value 
+		cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
+
+		printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
+
+		if( (diff/(GRID_DIMENSION*GRID_DIMENSION)) < TOLERANCE ) {
+		    done = 1;
+		}
+
+		// most boring game of ping-pong I've ever played
+		tmpPtr = A_on_device;
+		A_on_device = B_on_device;
+		B_on_device = tmpPtr;
+	}
+	gettimeofday(&stop, NULL);
+	float gpuTime  = (float)(stop.tv_sec - start.tv_sec+(stop.tv_usec - start.tv_usec)/(float)1000000);
+
+	float speedUp = cpuTime / gpuTime;
+	printf(">> Speedup = %f\n", speedUp);
+
+
     //Copy dest from the GPU, because we need the final output 
     cudaMemcpy(dest->element, A_on_device, GRID_DIMENSION*GRID_DIMENSION*sizeof(float), cudaMemcpyDeviceToHost);
 	src=dest;
@@ -177,8 +188,13 @@ main(int argc, char **argv)
  	create_grids(grid_for_cpu, grid_for_gpu); // Create the grids and populate them with the same set of random values
 	
 	printf("Using the cpu to solve the grid. \n");
+
+	struct timeval start, stop; 
+	gettimeofday(&start, NULL);
 	compute_gold(grid_for_cpu);  // Use CPU to solve 
-	
+	gettimeofday(&stop, NULL);
+	cpuTime = (float)(stop.tv_sec - start.tv_sec+(stop.tv_usec - start.tv_usec)/(float)1000000);
+
 	// Use the GPU to solve the equation
 	compute_on_device(grid_for_gpu);
 	

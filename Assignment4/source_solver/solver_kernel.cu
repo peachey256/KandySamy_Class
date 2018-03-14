@@ -47,16 +47,19 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
 
     // find yo self in current block (for shared mem)
     int threadLoc = threadIdx.y * blockDim.x + threadIdx.x;
+    
+    // width of matrix
     int gridWidth = blockDim.x  * gridDim.x;
 
     // subtract 2 from stride b/c of border
-    int stride = gridDim.x * blockDim.x - 1;
+    int stride = gridDim.x * blockDim.x - 2;
 
+    
     // stride stride stride
-    for( ; ty < GRID_DIMENSION - stride; ty += stride) {
-        for( ; tx < GRID_DIMENSION - stride; tx += stride) {
+    for( ; ty < GRID_DIMENSION; ty += stride) {
+        for( ; tx < GRID_DIMENSION; tx += stride) {
            
-            // copy src and dest to shared
+	    // copy src and dest to shared
             _src_shared[threadLoc] =  src[ty * gridWidth + tx];
 
             // gotta wait for the slowpokes 
@@ -64,34 +67,30 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
             
             // don't run if we're on the border
             // should we also ignore the first column & row??
-            if ( threadIdx.y && threadIdx.x && 
-                    (threadIdx.x<blockDim.x && threadIdx.y<blockDim.y)){
-                float tmp = _src_shared[threadLoc];
+            if ( threadIdx.x && threadIdx.y && 
+		 (threadIdx.x < blockDim.x-1 && threadIdx.y < blockDim.y-1) &&
+		 (ty<(GRID_DIMENSION-1) && tx<(GRID_DIMENSION-1))) {
 
-                double newDest = 
-                    0.2*(_src_shared[threadIdx.y     * blockDim.x + threadIdx.x]+
+                 double newDest = 
+                    (float)0.2*(_src_shared[threadIdx.y * blockDim.x + threadIdx.x]+
                          _src_shared[(threadIdx.y+1) * blockDim.x + threadIdx.x]+
                          _src_shared[(threadIdx.y-1) * blockDim.x + threadIdx.x]+
                          _src_shared[threadIdx.y     * blockDim.x + (threadIdx.x+1)]+
                          _src_shared[threadIdx.y     * blockDim.x + (threadIdx.x-1)]);
                 
-                dest[ty * gridWidth + tx] = newDest;
+           	double tmp = (double)dest[ty*gridWidth + tx];
+           	dest[ty*gridWidth + tx] = (float)newDest;
                 
                 // calculate diff and add to total diff
                 //  ... diff stays global
-                double newDiff = fabs(newDest - tmp);
-                atomicAdd(diff, (double)1.0);
+            	double newDiff = fabs(newDest - tmp);
+            	atomicAdd(diff, newDiff);
             }
-    
+
             // copy dst_shared back to dest
             // dest[ty * gridWidth + tx] = diff;
         }
     }
- 
-//update the values 
-
-//calculate diff (think this may stay in global) 
-
 }
 
 #endif /* _MATRIXMUL_KERNEL_H_ */
