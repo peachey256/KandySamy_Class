@@ -102,7 +102,6 @@ compute_on_device(GRID_STRUCT *src)
 	dest->dimension = src->dimension *src->dimension; 
 	
     double diff = 0;
-    double *diffPtr = &diff;
 
     double *Diff_on_device;
     float  *A_on_device;
@@ -125,31 +124,31 @@ compute_on_device(GRID_STRUCT *src)
             BLOCK_SIZE, BLOCK_SIZE);
 
 	int done = 0, cnt = 0;
-	while(!done){
+	//while(!done) {
 
-        //launch the kernel
-        diff = (double)0;
-        cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
-        printf("executing kernel...\n");
-        solver_kernel_naive<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
-        //solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
-        
-        cudaThreadSynchronize();
+		//launch the kernel
+		diff = (double)5;
+		cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
+		printf("executing kernel...\n");
+		//solver_kernel_naive<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
+		solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
+		
+		cudaThreadSynchronize();
 
-        //copy diff from the GPU only a single value 
-        cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
+		//copy diff from the GPU only a single value 
+		cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
 
-        printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
+		printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
 
-        if( (diff/(GRID_DIMENSION*GRID_DIMENSION)) < TOLERANCE ) {
-            done = 1;
-        }
+		if( (diff/(GRID_DIMENSION*GRID_DIMENSION)) < TOLERANCE ) {
+		    done = 1;
+		}
 
-        // most boring game of ping-pong I've ever played
-        tmpPtr = A_on_device;
-        A_on_device = B_on_device;
-        B_on_device = tmpPtr;
-	}
+		// most boring game of ping-pong I've ever played
+		tmpPtr = A_on_device;
+		A_on_device = B_on_device;
+		B_on_device = tmpPtr;
+	//}
 	
     //Copy dest from the GPU, because we need the final output 
     cudaMemcpy(dest->element, A_on_device, GRID_DIMENSION*GRID_DIMENSION*sizeof(float), cudaMemcpyDeviceToHost);
