@@ -131,8 +131,8 @@ compute_on_device(GRID_STRUCT *src)
         diff = (double)0;
         cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
         printf("executing kernel...\n");
-        // solver_kernel_naive<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
-        solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
+        solver_kernel_naive<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
+        //solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
         
         cudaThreadSynchronize();
 

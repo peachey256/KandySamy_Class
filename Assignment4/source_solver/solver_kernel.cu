@@ -63,7 +63,9 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
             __syncthreads();
             
             // don't run if we're on the border
-            if ( tx && ty && tx<(blockDim.x) && ty<(blockDim.y) ) {
+            // should we also ignore the first column & row??
+            if ( threadIdx.y && threadIdx.x && 
+                    (threadIdx.x<blockDim.x && threadIdx.y<blockDim.y)){
                 float tmp = _src_shared[threadLoc];
 
                 double newDest = 
@@ -78,9 +80,9 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
                 // calculate diff and add to total diff
                 //  ... diff stays global
                 double newDiff = fabs(newDest - tmp);
-                atomicAdd(diff, newDiff);
+                atomicAdd(diff, (double)1.0);
             }
-
+    
             // copy dst_shared back to dest
             // dest[ty * gridWidth + tx] = diff;
         }
