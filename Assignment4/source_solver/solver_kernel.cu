@@ -30,7 +30,7 @@ solver_kernel_naive(float *src, float *dest, double *diff)
 
             //calculate diff and add to total diff
             double newDiff = fabs(dest[ty*gridWidth + tx] - tmp);
-            atomicAdd(diff, (double)1.0);
+            atomicAdd(diff, newDiff);
         }
     }
 }
@@ -68,22 +68,23 @@ solver_kernel_optimized(float *src, float *dest, double *diff)
             // don't run if we're on the border
             // should we also ignore the first column & row??
             if ( threadIdx.x && threadIdx.y && 
-		(ty<(GRID_DIMENSION-1) && tx<(GRID_DIMENSION-1))){
+		 (threadIdx.x < blockDim.x-1 && threadIdx.y < blockDim.y-1) &&
+		 (ty<(GRID_DIMENSION-1) && tx<(GRID_DIMENSION-1))) {
 
-		atomicAdd(diff, (double)1.0);
-                dest[ty * gridWidth + tx] = 
-                    (float)0.2*(_src_shared[threadIdx.y     * blockDim.x + threadIdx.x]+
+                 double newDest = 
+                    (float)0.2*(_src_shared[threadIdx.y * blockDim.x + threadIdx.x]+
                          _src_shared[(threadIdx.y+1) * blockDim.x + threadIdx.x]+
                          _src_shared[(threadIdx.y-1) * blockDim.x + threadIdx.x]+
                          _src_shared[threadIdx.y     * blockDim.x + (threadIdx.x+1)]+
                          _src_shared[threadIdx.y     * blockDim.x + (threadIdx.x-1)]);
                 
-            	//float tmp = dest[ty*gridWidth + tx];
+           	double tmp = (double)dest[ty*gridWidth + tx];
+           	dest[ty*gridWidth + tx] = (float)newDest;
                 
                 // calculate diff and add to total diff
                 //  ... diff stays global
-            	//double newDiff = fabs(newDest - tmp);
-            	//atomicAdd(diff, newDiff);
+            	double newDiff = fabs(newDest - tmp);
+            	atomicAdd(diff, newDiff);
             }
 
             // copy dst_shared back to dest
