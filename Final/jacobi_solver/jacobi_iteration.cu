@@ -98,25 +98,54 @@ compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B){
 	Matrix A_on_device; 
 	Matrix B_on_device; 		
 	Matrix x_on_device; 
+	double * Diff_on_device; 
+	double diff; 
 
 	//allocate memory on GPU 
 	A_on_device=allocate_matrix_on_gpu(A); 
 	B_on_device=allocate_matrix_on_gpu(B); 
 	x_on_device=allocate_matrix_on_gpu(gpu_solution_x);
- 
+	cudaMalloc((void**)Diff_on_device, sizeof(double));
+	cudaMalloc((void**)part_sum, THREAD_BLOCK_SIZE*NUM_BLOCKS*sizeof(double);
+
 	//copy memory to GPU 
 	copy_matrix_to_device(A_on_device,A); 
 	copy_matrix_to_device(B_on_device, B); 
 	copy_matrix_to_device(x_on_device, B); //initialize to B. 
 	
 	//make the thread blocks and grid jawn 
-	dim3 grid(GRID_SIZE); 
-	dim3 thread_block(BLOCK_SIZE); 
+	dim3 grid(NUM_BLOCKS); 
+	dim3 thread_block(THREAD_BLOCK_SIZE, THREAD_BLOCK_SIZE); 
 
-	//do a while loop
-		//launch a kernel
-		//copy the diff value 
-		//calculate convergence (start with reduction here) 
+	int done = 0, cnt = 0;
+	
+	while(!done) {
+
+		//launch the kernel
+		diff = (double)5;
+		cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
+		printf("executing kernel...\n");
+		
+		jacobi_iteration_kernel<<<grid, thread_block>>>(A_on_device.elements,
+			B_on_device.elements, x_on_device.elements, Diff_on_device);
+		//solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
+		
+		cudaThreadSynchronize();
+
+		
+
+		//copy diff from the GPU only a single value 
+		cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
+
+		printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
+
+		if( sqrt(diff) < TOLERANCE ) {
+		    done = 1;
+		}
+
+		//just x is updated dont think we have to ping pong
+	}
+
 	
 	//copy memory back to CPU 
 	copy_matrix_from_device(gpu_solution_x, x_on_device);

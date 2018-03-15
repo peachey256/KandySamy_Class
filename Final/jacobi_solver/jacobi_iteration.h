@@ -7,6 +7,7 @@
 
 #define THREAD_BLOCK_SIZE 128            // Size of a thread block
 #define NUM_BLOCKS 32                    // Number of thread blocks
+#define TILE_SIZE 64 //made this up
 
 // Dimension of the n x n matrix
 #define MATRIX_SIZE 1024
