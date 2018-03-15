@@ -95,7 +95,36 @@ main(int argc, char** argv)
 // Complete this function to perform the Jacobi calculation on the GPU
 void 
 compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B){
+	Matrix A_on_device; 
+	Matrix B_on_device; 		
+	Matrix x_on_device; 
 
+	//allocate memory on GPU 
+	A_on_device=allocate_matrix_on_gpu(A); 
+	B_on_device=allocate_matrix_on_gpu(B); 
+	x_on_device=allocate_matrix_on_gpu(gpu_solution_x);
+ 
+	//copy memory to GPU 
+	copy_matrix_to_device(A_on_device,A); 
+	copy_matrix_to_device(B_on_device, B); 
+	copy_matrix_to_device(x_on_device, B); //initialize to B. 
+	
+	//make the thread blocks and grid jawn 
+	dim3 grid(GRID_SIZE); 
+	dim3 thread_block(BLOCK_SIZE); 
+
+	//do a while loop
+		//launch a kernel
+		//copy the diff value 
+		//calculate convergence (start with reduction here) 
+	
+	//copy memory back to CPU 
+	copy_matrix_from_device(gpu_solution_x, x_on_device);
+ 
+	//free all the GPU memory 
+	cudaFree(A_on_device.elements); 
+	cudaFree(B_on_device.elements); 
+	cudaFree(x_on_device.elements); 
 }
 
 // Allocate a device matrix of same size as M.
