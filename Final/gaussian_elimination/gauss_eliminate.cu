@@ -86,10 +86,11 @@ main(int argc, char** argv)
 void 
 gauss_eliminate_on_device(const Matrix A, Matrix U)
 {
-	Matrix A_on_device; 
+	Matrix A_on_device, U_on_device; 
 		
 	//allocate memory on GPU 
-	A_on_device=allocate_matrix_on_gpu(A); 
+	A_on_device=allocate_matrix_on_gpu(A);
+    U_on_device=allocate_matrix_on_gpu(U);
 
 	//copy memory to GPU 
 	copy_matrix_to_device(A_on_device,A); 
@@ -109,7 +110,9 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 		cudaThreadSynchronize(); 
 
 		//launch elimination for that k_i
-		gauss_eliminate_kernel<<<grid, thread_block>>>(A_on_device.elements, k); 
+		gauss_eliminate_kernel<<<grid, thread_block>>>(A_on_device.elements, 
+                                                       U_on_device.elements, k); 
+
 		cudaThreadSynchronize(); 
 	}
 	//copy memory back to CPU 
