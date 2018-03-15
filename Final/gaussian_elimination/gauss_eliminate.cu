@@ -86,6 +86,36 @@ main(int argc, char** argv)
 void 
 gauss_eliminate_on_device(const Matrix A, Matrix U)
 {
+	Matrix A_on_device; 
+		
+	//allocate memory on GPU 
+	A_on_device=allocate_matrix_on_gpu(A); 
+
+	//copy memory to GPU 
+	copy_matrix_to_device(A_on_device,A); 
+	
+	//make the thread blocks and grid jawn 
+	dim3 grid(GRID_SIZE); 
+	dim3 thread_block(BLOCK_SIZE); 
+
+	int k; 
+	//for all the k 
+	for(k=0; k<MATRIX_SIZE; k++){
+		//They need to be launched this way to ensure that synchronization
+		//happens between all thread blocks 
+
+		//launch division for that k_i
+		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
+		cudaThreadSynchronize(); 
+
+		//launch elimination for that k_i
+		gauss_eliminate_kernel<<<grid, thread_block>>>(A_on_device.elements, k); 
+		cudaThreadSynchronize(); 
+	}
+	//copy memory back to CPU 
+	copy_matrix_from_device(A, A_on_device); 
+	//free all the GPU memory 
+	cudaFree(A_on_device.elements); 
 }
 
 // Allocate a device matrix of same size as M.
