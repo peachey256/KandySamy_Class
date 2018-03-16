@@ -73,21 +73,33 @@ main(int argc, char** argv)
 	print_matrix (reference_x);
 #endif
 
-    // Compute the Jacobi solution on the CPU
+    struct timeval startCPU, stopCPU, startGPU, stopGPU; 
+
+	
+	// Compute the Jacobi solution on the CPU
 	printf("Performing Jacobi iteration on the CPU. \n");
-    compute_gold (A, reference_x, B);
+    gettimeofday(&startCPU, NULL); 
+	compute_gold (A, reference_x, B);
+	gettimeofday(&stopCPU, NULL); 
     display_jacobi_solution(A, reference_x, B); // Display statistics
 	
 	// Compute the Jacobi solution on the GPU. The solution is returned in gpu_solution_x
     printf("\n Performing Jacobi iteration on the GPU. \n");
+	gettimeofday(&startGPU, NULL);
 	compute_on_device (A, gpu_solution_x, B);
-    display_jacobi_solution(A, gpu_solution_x, B); // Display statistics
+    gettimeofday(&stopGPU, NULL);
+	display_jacobi_solution(A, gpu_solution_x, B); // Display statistics
 	
     free(A.elements); 
 	free(B.elements); 
 	free(reference_x.elements); 
 	free(gpu_solution_x.elements);
-	
+	float CPU_time=stopCPU.tv_sec-startCPU.tv_sec+(stopCPU.tv_usec-startCPU.tv_usec)/(float)1000000; 
+	float GPU_time=stopGPU.tv_sec-startGPU.tv_sec+(stopGPU.tv_usec-startGPU.tv_usec)/(float)1000000; 
+	printf("Matrix Size: %d \n",MATRIX_SIZE);
+	printf("grid : 1 x %d\n thread block : %d x %d\n",NUM_BLOCKS, THREAD_BLOCK_SIZE, THREAD_BLOCK_SIZE); 
+	printf("The CPU took: %0.3f s \n The GPU took: %f s \n",CPU_time, GPU_time);
+	printf("The speedup: %0.3f\n", CPU_time/GPU_time); 
     exit(0);
 }
 
@@ -120,20 +132,14 @@ compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B)
 	dim3 grid(1,NUM_BLOCKS); 
 	dim3 thread_block(THREAD_BLOCK_SIZE, THREAD_BLOCK_SIZE); 
 	
-	printf("A is a %d x %d\n x is a %d x %d \n B is a %d x %d\n",A_on_device.num_columns, A_on_device.num_rows,
-			x_on_device.num_columns, x_on_device.num_rows, B_on_device.num_columns, B_on_device.num_rows);
-	printf("grid : 1 x %d\n thread block : %d x %d\n",NUM_BLOCKS, THREAD_BLOCK_SIZE, THREAD_BLOCK_SIZE); 
-
 	int done = 0, cnt = 0;
 	
-	//while(!done)
-	//testing 
-	for(done=0; done<10; done++) 
+	while(!done)
+	//for(done=0; done<10; done++) 
 	{
 		//launch the kernel
-		diff = (double)5;
+		diff = (double)0;
 		cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
-		printf("executing kernel...\n");
 		
 		jacobi_iteration_kernel<<<grid, thread_block>>>(A_on_device.elements,
 			B_on_device.elements, x_on_device.elements, x_new_device.elements, Diff_on_device);
@@ -142,7 +148,7 @@ compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B)
 		//copy diff from the GPU only a single value 
 		cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
 
-		printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
+		printf("GPU iteration %d : diff = %f\n", ++cnt, sqrt(diff));
 
 		if( sqrt(diff) < THRESHOLD ) 
 		    done = 1;
