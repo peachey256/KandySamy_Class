@@ -109,7 +109,7 @@ compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B)
 	B_on_device=allocate_matrix_on_gpu(B); 
 	x_on_device=allocate_matrix_on_gpu(gpu_solution_x);
 	x_new_device=allocate_matrix_on_gpu(gpu_solution_x); 
-	cudaMalloc((void**)Diff_on_device, sizeof(double));
+	cudaMalloc((void**)&Diff_on_device, sizeof(double));
 
 	//copy memory to GPU 
 	copy_matrix_to_device(A_on_device,A); 
