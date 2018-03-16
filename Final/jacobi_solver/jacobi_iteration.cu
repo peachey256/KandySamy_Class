@@ -94,19 +94,22 @@ main(int argc, char** argv)
 
 // Complete this function to perform the Jacobi calculation on the GPU
 void 
-compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B){
+compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B)
+{
 	Matrix A_on_device; 
 	Matrix B_on_device; 		
 	Matrix x_on_device; 
-	double * Diff_on_device; 
-	double diff; 
+	Matrix x_new_device;
+	double * Diff_on_device=NULL;  
+	double diff;
+	float * temp; 
 
 	//allocate memory on GPU 
 	A_on_device=allocate_matrix_on_gpu(A); 
 	B_on_device=allocate_matrix_on_gpu(B); 
 	x_on_device=allocate_matrix_on_gpu(gpu_solution_x);
+	x_new_device=allocate_matrix_on_gpu(gpu_solution_x); 
 	cudaMalloc((void**)Diff_on_device, sizeof(double));
-	cudaMalloc((void**)part_sum, THREAD_BLOCK_SIZE*NUM_BLOCKS*sizeof(double);
 
 	//copy memory to GPU 
 	copy_matrix_to_device(A_on_device,A); 
@@ -114,39 +117,42 @@ compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B){
 	copy_matrix_to_device(x_on_device, B); //initialize to B. 
 	
 	//make the thread blocks and grid jawn 
-	dim3 grid(NUM_BLOCKS); 
+	dim3 grid(1,NUM_BLOCKS); 
 	dim3 thread_block(THREAD_BLOCK_SIZE, THREAD_BLOCK_SIZE); 
+	
+	printf("A is a %d x %d\n x is a %d x %d \n B is a %d x %d\n",A_on_device.num_columns, A_on_device.num_rows,
+			x_on_device.num_columns, x_on_device.num_rows, B_on_device.num_columns, B_on_device.num_rows);
+	printf("grid : 1 x %d\n thread block : %d x %d\n",NUM_BLOCKS, THREAD_BLOCK_SIZE, THREAD_BLOCK_SIZE); 
 
 	int done = 0, cnt = 0;
 	
-	while(!done) {
-
+	//while(!done)
+	//testing 
+	for(done=0; done<10; done++) 
+	{
 		//launch the kernel
 		diff = (double)5;
 		cudaMemcpy(Diff_on_device, &diff, sizeof(double), cudaMemcpyHostToDevice);
 		printf("executing kernel...\n");
 		
 		jacobi_iteration_kernel<<<grid, thread_block>>>(A_on_device.elements,
-			B_on_device.elements, x_on_device.elements, Diff_on_device);
-		//solver_kernel_optimized<<<grid, thread_block>>>(A_on_device, B_on_device, Diff_on_device);
-		
-		cudaThreadSynchronize();
-
-		
+			B_on_device.elements, x_on_device.elements, x_new_device.elements, Diff_on_device);
+		cudaThreadSynchronize(); 
 
 		//copy diff from the GPU only a single value 
 		cudaMemcpy(&diff, Diff_on_device, sizeof(double), cudaMemcpyDeviceToHost);
 
 		printf("GPU iteration %d : diff = %f\n", ++cnt, diff);
 
-		if( sqrt(diff) < TOLERANCE ) {
+		if( sqrt(diff) < THRESHOLD ) 
 		    done = 1;
-		}
 
-		//just x is updated dont think we have to ping pong
-	}
-
+		//ping pong x 
+		temp=x_on_device.elements; 
+		x_on_device.elements=x_new_device.elements; 
+		x_new_device.elements=temp; 
 	
+	} 
 	//copy memory back to CPU 
 	copy_matrix_from_device(gpu_solution_x, x_on_device);
  
@@ -154,6 +160,9 @@ compute_on_device(const Matrix A, Matrix gpu_solution_x, const Matrix B){
 	cudaFree(A_on_device.elements); 
 	cudaFree(B_on_device.elements); 
 	cudaFree(x_on_device.elements); 
+	cudaFree(x_new_device.elements); 
+	cudaFree(Diff_on_device); 
+
 }
 
 // Allocate a device matrix of same size as M.
