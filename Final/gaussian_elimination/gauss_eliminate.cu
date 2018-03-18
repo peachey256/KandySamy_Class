@@ -254,16 +254,23 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
 {
     int checkMark = 1;
     float epsilon = 0.0;
-  
+ 
     printf("\n\n_______REFERENCE_______\n");
+    //for(int y = MATRIX_SIZE-5; y < MATRIX_SIZE; y++) {
+    //    for(int x = MATRIX_SIZE-5; x < MATRIX_SIZE; x++) {
+
     for(int y = 0; y < 5; y++) {
         for(int x = 0; x < 5; x++) {
+
             printf("%f\t", reference[y*MATRIX_SIZE+x]);
         }
         printf("\n");
     }
 
     printf("\n________RESULT________\n");
+    //for(int y = MATRIX_SIZE-5; y < MATRIX_SIZE; y++) {
+    //    for(int x = MATRIX_SIZE-5; x < MATRIX_SIZE; x++) {
+
     for(int y = 0; y < 5; y++) {
         for(int x = 0; x < 5; x++) {
             printf("%f\t", gpu_result[y*MATRIX_SIZE+x]);
@@ -275,6 +282,8 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     for(int i = 0; i < num_elements; i++)
         if(fabsf((reference[i] - gpu_result[i])/reference[i]) > threshold){
             checkMark = 0;
+            printf(">> diverge at: A[%d, %d]\n", (int)floor(i/MATRIX_SIZE),
+                    (int)i%MATRIX_SIZE );
             break;
         }
 

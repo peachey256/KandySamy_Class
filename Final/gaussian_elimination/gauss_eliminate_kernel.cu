@@ -19,8 +19,8 @@ __global__ void gauss_division_kernel(float *A, int k)
 
 __global__ void gauss_eliminate_kernel(float *A, int k)
 {
-    int idxX = blockIdx.x * blockDim.x + threadIdx.x + k;
-    int idxY = blockIdx.y * blockDim.y + threadIdx.y + k;
+    int idxX = blockIdx.x * blockDim.x + threadIdx.x + k + 1;
+    int idxY = blockIdx.y * blockDim.y + threadIdx.y + k + 1;
 
     // figure out if we need striding
     int n_threads   = blockDim.x * gridDim.x;
@@ -28,7 +28,7 @@ __global__ void gauss_eliminate_kernel(float *A, int k)
     if(MATRIX_SIZE % n_threads)
         num_strides++;*/
 
-    if ((idxX-k)==0 && (idxY-k)==0)
+    if ( !(idxX-k-1) && !(idxY-k-1) )
         A[k * MATRIX_SIZE + k] = 1.0f;
 
     // stride in X and Y directions
