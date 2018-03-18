@@ -143,6 +143,8 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 	}
 	//copy memory back to CPU 
 	copy_matrix_from_device(U, A_on_device); 
+    U.elements[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
+
 	//free all the GPU memory 
 	cudaFree(A_on_device.elements); 
 }
@@ -256,11 +258,11 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     float epsilon = 0.0;
  
     printf("\n\n_______REFERENCE_______\n");
-    //for(int y = MATRIX_SIZE-5; y < MATRIX_SIZE; y++) {
-    //    for(int x = MATRIX_SIZE-5; x < MATRIX_SIZE; x++) {
+    for(int y = MATRIX_SIZE-4; y < MATRIX_SIZE; y++) {
+        for(int x = MATRIX_SIZE-4; x < MATRIX_SIZE; x++) {
 
-    for(int y = 0; y < 5; y++) {
-        for(int x = 0; x < 5; x++) {
+    //for(int y = 0; y < 5; y++) {
+    //    for(int x = 0; x < 5; x++) {
 
             printf("%f\t", reference[y*MATRIX_SIZE+x]);
         }
@@ -268,11 +270,11 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     }
 
     printf("\n________RESULT________\n");
-    //for(int y = MATRIX_SIZE-5; y < MATRIX_SIZE; y++) {
-    //    for(int x = MATRIX_SIZE-5; x < MATRIX_SIZE; x++) {
+    for(int y = MATRIX_SIZE-4; y < MATRIX_SIZE; y++) {
+        for(int x = MATRIX_SIZE-4; x < MATRIX_SIZE; x++) {
 
-    for(int y = 0; y < 5; y++) {
-        for(int x = 0; x < 5; x++) {
+    //for(int y = 0; y < 5; y++) {
+    //    for(int x = 0; x < 5; x++) {
             printf("%f\t", gpu_result[y*MATRIX_SIZE+x]);
         }
         printf("\n");

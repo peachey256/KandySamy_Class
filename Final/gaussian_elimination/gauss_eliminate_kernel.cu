@@ -28,8 +28,12 @@ __global__ void gauss_eliminate_kernel(float *A, int k)
     if(MATRIX_SIZE % n_threads)
         num_strides++;*/
 
-    if ( !(idxX-k-1) && !(idxY-k-1) )
+    if ( !(idxX-k-1) && !(idxY-k-1) ) {
         A[k * MATRIX_SIZE + k] = 1.0f;
+        //if (k == MATRIX_SIZE-2) {
+        //    A[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
+        //}
+    }
 
     // stride in X and Y directions
 	for( ; idxY < MATRIX_SIZE; idxY+=n_threads ) {
