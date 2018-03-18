@@ -17,31 +17,33 @@ __global__ void gauss_division_kernel(float *A, int k)
 	//value at row k, col k. still have to set k=1... 
 }
 
-
-
-__global__ void gauss_eliminate_kernel(float *A, float *U, int k)
+__global__ void gauss_eliminate_kernel(float *A, int k)
 {
-    // set diagonal of A
-    int tid = k + 1 + (blockDim.x * blockIdx.x + threadIdx.x);
-    A[k*MATRIX_SIZE + (tid)] = 1;
+    int idxX = blockIdx.x * blockDim.x + threadIdx.x;
+    int idxY = blockIdx.y * blockDim.y + threadIdx.y;
 
-    // TODO: Y[k] = B[k] / A[k, k];
+    // figure out if we need striding
+    int n_threads   = blockDim.x * gridDim.x;
+    int num_strides = MATRIX_SIZE / n_threads;
+    if(MATRIX_SIZE % n_threads)
+        num_strides++;
 
-    int number_of_updates = MATRIX_SIZE-k-1; //dont do anything before k. 	
-	int n_threads=GRID_SIZE*BLOCK_SIZE; 
-	int num_strides=number_of_updates/(n_threads); 
-	if(number_of_updates%(n_threads))
-		num_strides++;
+    if (idxX == 0  && idxY == 0)
+        A[k * MATRIX_SIZE + k] = 1.0f;
 
-    // not sure if I'm doing this striding correctly
-    // should we be creating a 2d thread block?
-    int y_stride, x_stride;
-	for(y_stride=0; y_stride<num_strides; y_stride+=n_threads) {
-	    for(x_stride=0; x_stride<num_strides; x_stride+=n_threads) {
+    // stride in X and Y directions
+	for( ; idxY < MATRIX_SIZE; idxY+=n_threads ) {
+	    for( ; idxX < MATRIX_SIZE; idxX+=n_threads ) {
+            
             // TODO: A[i,j] = A[i,j] - A[i,k] * A[k,j];
+            A[idxY*MATRIX_SIZE + (idxX)] = 
+                (A[idxY*MATRIX_SIZE + idxX]
+                - A[idxY*MATRIX_SIZE + k])
+                * A[k*MATRIX_SIZE + idxX];
         }
-        
-        // TODO: B[i] = B[i] - A[i,k] * Y[k]
+
+	    A[idxY * MATRIX_SIZE + k] = 0.0f; 
+        __syncthreads();
     }
 }
 

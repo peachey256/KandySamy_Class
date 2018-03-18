@@ -99,9 +99,13 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 	dim3 grid(GRID_SIZE); 
 	dim3 thread_block(BLOCK_SIZE); 
 
+    // sizes get assigned later
+    dim3 elim_grid;
+    dim3 elim_tb;
+
 	int k; 
 	//for all the k 
-	for(k=0; k<MATRIX_SIZE; k++){
+	for(k=0; k<MATRIX_SIZE-1; k++){
 		//They need to be launched this way to ensure that synchronization
 		//happens between all thread blocks 
 
@@ -109,14 +113,36 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
 		cudaThreadSynchronize(); 
 
-		//launch elimination for that k_i
-		gauss_eliminate_kernel<<<grid, thread_block>>>(A_on_device.elements, 
-                                                       U_on_device.elements, k); 
+        // calculate how large of a threadblock/ grid we need
+        int currDim = MATRIX_SIZE - (k + 1);
 
+        // tb_dim 
+        if (currDim <= BLOCK_MAX) {
+            elim_tb = dim3(currDim, currDim);
+            elim_grid = dim3(1, 1);
+        } 
+        
+        else if ( currDim < GRID_MAX * BLOCK_MAX ) {
+            elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
+
+            int tmpSize = (int)floor(currDim / BLOCK_MAX) + (int)(currDim % BLOCK_MAX);
+            elim_grid = dim3(tmpSize, tmpSize);
+        }
+
+        else {
+            elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
+            elim_grid = dim3(GRID_MAX, GRID_MAX);
+        }
+
+        printf(">> k = %d, grid = %dx%d, block = %dx%d\n",
+                k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
+
+		//launch elimination for that k_i
+		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_on_device.elements, k); 
 		cudaThreadSynchronize(); 
 	}
 	//copy memory back to CPU 
-	copy_matrix_from_device(A, A_on_device); 
+	copy_matrix_from_device(U, A_on_device); 
 	//free all the GPU memory 
 	cudaFree(A_on_device.elements); 
 }
@@ -228,7 +254,23 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
 {
     int checkMark = 1;
     float epsilon = 0.0;
-    
+  
+    printf("\n\n_______REFERENCE_______\n");
+    for(int y = 0; y < 5; y++) {
+        for(int x = 0; x < 5; x++) {
+            printf("%f\t", reference[y*MATRIX_SIZE+x]);
+        }
+        printf("\n");
+    }
+
+    printf("\n\n________RESULT________\n");
+    for(int y = 0; y < 5; y++) {
+        for(int x = 0; x < 5; x++) {
+            printf("%f\t", gpu_result[y*MATRIX_SIZE+x]);
+        }
+        printf("\n");
+    }
+
     for(int i = 0; i < num_elements; i++)
         if(fabsf((reference[i] - gpu_result[i])/reference[i]) > threshold){
             checkMark = 0;
