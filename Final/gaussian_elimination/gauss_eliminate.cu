@@ -125,7 +125,9 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
         else if ( currDim < GRID_MAX * BLOCK_MAX ) {
             elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
 
-            int tmpSize = (int)floor(currDim / BLOCK_MAX) + (int)(currDim % BLOCK_MAX);
+            // grid = # of times 32 goes into BLOCK_MAX * GRID_MAX / 
+            int tmpSize = (int)floor(currDim / BLOCK_MAX) + (currDim % BLOCK_MAX ? 1 : 0);
+
             elim_grid = dim3(tmpSize, tmpSize);
         }
 
