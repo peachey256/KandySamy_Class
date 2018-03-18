@@ -263,13 +263,14 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
         printf("\n");
     }
 
-    printf("\n\n________RESULT________\n");
+    printf("\n________RESULT________\n");
     for(int y = 0; y < 5; y++) {
         for(int x = 0; x < 5; x++) {
             printf("%f\t", gpu_result[y*MATRIX_SIZE+x]);
         }
         printf("\n");
     }
+    printf("\n");
 
     for(int i = 0; i < num_elements; i++)
         if(fabsf((reference[i] - gpu_result[i])/reference[i]) > threshold){
