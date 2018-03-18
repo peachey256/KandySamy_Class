@@ -5,12 +5,12 @@
 #define MIN_NUMBER 2        // Min number in the A and b matrices
 #define MAX_NUMBER 10       // Max number in the A and b matrices
 
-#define THREAD_BLOCK_SIZE 2           // Size of a thread block
-#define NUM_BLOCKS 2                    // Number of thread blocks
-#define TILE_SIZE 2 //made this up
+#define THREAD_BLOCK_SIZE 32          // Size of a thread block
+#define NUM_BLOCKS 32                  // Number of thread blocks
+#define TILE_SIZE THREAD_BLOCK_SIZE //made this up
 
 // Dimension of the n x n matrix
-#define MATRIX_SIZE 4
+#define MATRIX_SIZE 1024 
 #define NUM_COLUMNS MATRIX_SIZE         // Number of columns in Matrix A
 #define NUM_ROWS MATRIX_SIZE            // Number of rows in Matrix A
 
