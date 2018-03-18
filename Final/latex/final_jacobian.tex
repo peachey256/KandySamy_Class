@@ -1,0 +1,84 @@
+\documentclass[12pt]{article}
+\renewcommand{\baselinestretch}{1.5}
+\usepackage[utf8]{inputenc}
+
+\usepackage{hyperref}
+\hypersetup{linktoc=all}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{algorithm2e}
+\usepackage{graphicx}
+\usepackage{float}
+
+\begin{document}
+
+\title{Parallel Processing Final: \\Jacobian Iterative Solver}
+\author{Sarah Peachey \& Nathan Schomer}
+\maketitle
+
+\vspace{-1.5cm}
+\section{Design}
+\vspace{-0.25cm}
+
+\qquad A while loop was used on the CPU to launch the GPU kernel and test
+for convergence. The kernel took initialized some shared memory thats the
+size of the tile/thread block. Then loaded values from the A matrix and the
+x vector into those shared memory tiles. The tiles ensured that the memory
+accesses were coalessed, which increases performance. Each tile of shared
+memory was then matrix vector multiplied and saved to a partial sum vector.
+A reduction algorithm that also takes advantage of coalessed memory acessing 
+was then performed on the partial sum vector to
+calculate $\sum_{m\neq k}a_{m,k}x_m$. Which is then subtracted from the value
+in the b vector and is divided by the value on the diagonal. This is the new
+x value which is then used to calculate the error.  
+
+\newpage
+
+\subsection{Showing the tiled approach matrix multiplication.} 
+\lstinputlisting[language=C,
+firstline=39, lastline=42, numbers=left]
+{../jacobi_solver/jacobi_iteration_kernel.cu }
+
+\subsection{Showing the reducation algorithm and difference error calculation.}
+\lstinputlisting[language=C,
+firstline=47, lastline=59, numbers=left]
+{../jacobi_solver/jacobi_iteration_kernel.cu }
+
+
+\pagebreak
+\vspace{-0.6cm}
+\section{Discussion of speed up}
+\vspace{-0.4cm}
+
+\qquad Speed-up was calculated for the jacobian iterative solver on the GPU
+vs the CPU code with, Equation 1. 
+As seen by the speed-up ratios in Table 1, with thread block the size of 32 threads there is
+considerable speedup, and increased speedup as the size of the matrix
+increased. This is probably do to the fact that since the matrix was larger
+more computation had to be performed so the data transfer time had less impact on
+the overal time. Furthermore, with a thread block the size of 16 threads the
+speedup was mostly slower except for the matrix with 2048 elements which was
+actually faster than with 32 sized thread blocks. 
+
+\begin{equation}
+    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
+\end{equation}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}|l|l|c|}
+\hline
+Thread Block Size & Matrix Size & Speed-Up \\ \hline
+16 & 512 & 2.131  \\ \hline
+16 & 1024 &  9.539 \\ \hline
+16 & 2048 &  28.503 \\ \hline
+32 & 512 & 2.117  \\ \hline
+32 & 1024 & 9.873  \\ \hline
+32 & 2048 & 24.962  \\ \hline
+\end{tabular}
+\caption{Speed-Up calculated on Xunil-05}
+\end{table}
+
+\end{document}
