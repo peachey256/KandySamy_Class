@@ -8,6 +8,19 @@
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{listings}
+\usepackage{color}
+\definecolor{light-gray}{gray}{0.9}
+\lstset{numbers=right,
+                tabsize=1, 
+					 numberstyle=\tiny,
+                breaklines=true,
+                showtabs=false, 
+					 backgroundcolor=\color{light-gray},
+                numbersep=5pt,
+                xleftmargin=.4in,
+                xrightmargin=.4in}
+
+
 \usepackage{algorithm2e}
 \usepackage{graphicx}
 \usepackage{float}
@@ -23,16 +36,17 @@
 \vspace{-0.25cm}
 
 \qquad A while loop was used on the CPU to launch the GPU kernel and test
-for convergence. The kernel took initialized some shared memory thats the
+for convergence. The kernel took some shared memory that is the
 size of the tile/thread block. Then loaded values from the A matrix and the
 x vector into those shared memory tiles. The tiles ensured that the memory
-accesses were coalessed, which increases performance. Each tile of shared
+accesses were coalesced, which increases performance. Each tile of shared
 memory was then matrix vector multiplied and saved to a partial sum vector.
-A reduction algorithm that also takes advantage of coalessed memory acessing 
+A reduction algorithm that also takes advantage of coalesced memory accessing 
 was then performed on the partial sum vector to
-calculate $\sum_{m\neq k}a_{m,k}x_m$. Which is then subtracted from the value
+calculate $\sum_{m\neq k}a_{m,k}x_m$. Which is then subtracted from the
+corresponding value
 in the b vector and is divided by the value on the diagonal. This is the new
-x value which is then used to calculate the error.  
+x value which is then used to calculate the squared error.  
 
 \newpage
 
