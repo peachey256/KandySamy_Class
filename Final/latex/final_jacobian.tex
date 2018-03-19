@@ -74,7 +74,9 @@ increased. This is probably do to the fact that since the matrix was larger
 more computation had to be performed so the data transfer time had less impact on
 the overal time. Furthermore, with a thread block the size of 16 threads the
 speedup was mostly slower except for the matrix with 2048 elements which was
-actually faster than with 32 sized thread blocks. 
+actually faster than with 32 sized thread blocks. But since most of the
+speeds are within an allowable tolerance from 16 to 32 sized thread blocks,
+I would say the code is not very sensitive to the size of the thread blocks. 
 
 \begin{equation}
     s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
