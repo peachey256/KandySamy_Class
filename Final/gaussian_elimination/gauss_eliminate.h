@@ -2,7 +2,7 @@
 #define _GAUSS_ELIMINATE_H_
 
 // Matrix dimensions
-#define MATRIX_SIZE 128
+#define MATRIX_SIZE 2048
 #define NUM_COLUMNS MATRIX_SIZE // Number of columns in Matrix A
 #define NUM_ROWS MATRIX_SIZE // Number of rows in Matrix A
 #define GRID_SIZE 10

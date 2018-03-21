@@ -300,10 +300,9 @@ void writeToFile(float* A)
     for(int y = 0; y < MATRIX_SIZE; y++) {
     	for(int x = 0; x < MATRIX_SIZE; x++) {
 	    fprintf(fp, "%f\t", A[y*MATRIX_SIZE + x]);
-	}
+	    }
 	fprintf(fp, "\n");
     }
-    fprintf(fp, "");
     fclose(fp);
 }
 
@@ -340,31 +339,36 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     float* diff = (float *)malloc(sizeof(float)*MATRIX_SIZE*MATRIX_SIZE);
 
     int xDiverge, yDiverge;
+    double totalSum = 0.0f, currDiff;
 
     for(int i = 0; i < num_elements; i++) {
-	diff[i] = fabsf(reference[i] - gpu_result[i]);
-        if(fabsf((reference[i] - gpu_result[i])/reference[i]) > threshold){
+	    currDiff = fabsf((fabsf(reference[i]) -
+                    fabsf(gpu_result[i]))/reference[i]);
+        //totalSum += currDiff;
+        
+        /*if(currDiff > threshold){
             checkMark = 0;
             xDiverge = i%MATRIX_SIZE;
             yDiverge = floor(i/MATRIX_SIZE);
             printf(">> diverge at: A[%d, %d]\n", (int)floor(i/MATRIX_SIZE),
                     (int)i%MATRIX_SIZE );
             break;
-        }
+        }*/
+
+        diff[i] = currDiff;
     }
+
+    // if average diff is greater than thresh
+    printf("Total Diff: %f\n", totalSum);
+    if (totalSum/(MATRIX_SIZE*MATRIX_SIZE) > threshold) {
+        checkMark = 0;
+    }
+
+    writeToFile(diff);
+
 
     if (!checkMark) {
 
-	printf("\n\n_______DIFFERENCE_______\n");
-        for(int y = yDiverge-1; y < yDiverge + 4; y++) {
-            for(int x = xDiverge-1; x < xDiverge + 4; x++)
-                printf("%f\t", diff[y*MATRIX_SIZE + x]);
-            printf("\n");
-        }
-        printf("\n");
-
-	writeToFile(diff);
-        
         printf("\n_______REFERENCE_______\n");
         for(int y = yDiverge-1; y < yDiverge + 4; y++) {
             for(int x = xDiverge-1; x < xDiverge + 4; x++)
