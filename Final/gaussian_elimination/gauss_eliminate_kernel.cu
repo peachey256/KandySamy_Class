@@ -35,6 +35,8 @@ __global__ void gauss_eliminate_kernel(double *A, int k)
         //}
     }
 
+    __syncthreads();
+
     // stride in X and Y directions
 	for( ; idxY < MATRIX_SIZE; idxY+=n_threads ) {
 	    for( ; idxX < MATRIX_SIZE; idxX+=n_threads ) {
@@ -47,6 +49,8 @@ __global__ void gauss_eliminate_kernel(double *A, int k)
         }
            
         // zero out element below diagonal after sync
+
+        __syncthreads();
         //A[idxY*MATRIX_SIZE + k] = 0.0f;
     }
 }
@@ -74,8 +78,8 @@ __global__ void zero_out_lower_kernel(double *A)
 
 __global__ void float_to_double(float *A, double *B)
 {
-    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
     int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
     int n_threads = blockDim.x * gridDim.x;
 
@@ -88,8 +92,8 @@ __global__ void float_to_double(float *A, double *B)
 
 __global__ void double_to_float(float *A, double *B)
 {
-    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
     int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
 
     int n_threads = blockDim.x * gridDim.x;
 

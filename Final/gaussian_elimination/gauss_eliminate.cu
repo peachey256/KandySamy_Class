@@ -101,7 +101,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 	copy_matrix_to_device(A_on_device,A);
 
     dim3 cpGrid(GRID_MAX, GRID_MAX);
-    dim3 cpTB(BLOCK_SIZE, BLOCK_SIZE);
+    dim3 cpTB(BLOCK_MAX, BLOCK_MAX);
 
     float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
 	
@@ -300,8 +300,8 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     float epsilon = 0.0;
  
     printf("\n\n_______REFERENCE_______\n");
-    for(int y = MATRIX_SIZE-4; y < MATRIX_SIZE; y++) {
-        for(int x = MATRIX_SIZE-4; x < MATRIX_SIZE; x++) {
+    for(int y = 0; y < 8; y++) {
+        for(int x = MATRIX_SIZE-8; x < MATRIX_SIZE; x++) {
 
     //for(int y = 0; y < 5; y++) {
     //    for(int x = 0; x < 5; x++) {
@@ -312,8 +312,8 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     }
 
     printf("\n________RESULT________\n");
-    for(int y = MATRIX_SIZE-4; y < MATRIX_SIZE; y++) {
-        for(int x = MATRIX_SIZE-4; x < MATRIX_SIZE; x++) {
+    for(int y = 0; y < 8; y++) {
+        for(int x = MATRIX_SIZE-8; x < MATRIX_SIZE; x++) {
 
     //for(int y = 0; y < 5; y++) {
     //    for(int x = 0; x < 5; x++) {
@@ -338,16 +338,16 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     if (!checkMark) {
         
         printf("\n\n_______REFERENCE_______\n");
-        for(int y = yDiverge - 2; y < yDiverge + 3; y++) {
-            for(int x = xDiverge - 2; x < xDiverge + 3; x++)
+        for(int y = yDiverge-1; y < yDiverge + 4; y++) {
+            for(int x = xDiverge-1; x < xDiverge + 4; x++)
                 printf("%f\t", reference[y*MATRIX_SIZE + x]);
             printf("\n");
         }
         printf("\n");
 
         printf("\n________RESULT________\n");
-        for(int y = yDiverge - 2; y < yDiverge + 3; y++) {
-            for(int x = xDiverge - 2; x < xDiverge + 3; x++)
+        for(int y = yDiverge-1; y < yDiverge + 4; y++) {
+            for(int x = xDiverge-1; x < xDiverge + 4; x++)
                 printf("%f\t", gpu_result[y*MATRIX_SIZE + x]);
             printf("\n");
         }
