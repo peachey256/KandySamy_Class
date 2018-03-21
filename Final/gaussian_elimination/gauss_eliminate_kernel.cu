@@ -40,12 +40,35 @@ __global__ void gauss_eliminate_kernel(float *A, int k)
 	    for( ; idxX < MATRIX_SIZE; idxX+=n_threads ) {
             
             // TODO: A[i,j] = A[i,j] - A[i,k] * A[k,j];
-            A[idxY*MATRIX_SIZE+idxX] -= 
-                A[idxY*MATRIX_SIZE + k]*A[k*MATRIX_SIZE + idxX];
-        }
+            double tmp = (double)A[idxY*MATRIX_SIZE+idxX] -
+                (double)A[idxY*MATRIX_SIZE + k]*(double)A[k*MATRIX_SIZE + idxX];
 
-	    A[idxY * MATRIX_SIZE + k] = 0.0f; 
-        __syncthreads();
+            A[idxY*MATRIX_SIZE+idxX] = tmp; 
+        }
+           
+        // zero out element below diagonal after sync
+        //A[idxY*MATRIX_SIZE + k] = 0.0f;
     }
+}
+
+__global__ void zero_out_lower_kernel(float *A)
+{
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    int n_threads = blockDim.x * gridDim.x;
+
+    for(int idx=tid+1; idx<=(MATRIX_SIZE*(MATRIX_SIZE-1))/2; idx+=n_threads ) {
+        /*tmp = (MATRIX_SIZE*(MATRIX_SIZE-1))/2-idx;
+        x = MATRIX_SIZE - floor((sqrtf(1+8*tmp)-1)/2);
+        y = MATRIX_SIZE - tmp - k*(k+1)/2 - 1;
+        A[y*MATRIX_SIZE + x] = 100.0f;*/
+		
+	  	int rvLinear = (MATRIX_SIZE*(MATRIX_SIZE-1))/2-idx;
+	    int k = floor( (sqrtf(1+8*rvLinear)-1)/2 );
+	    int j = rvLinear - k*(k+1)/2;
+	    int y = MATRIX_SIZE-j-1;
+		int x = MATRIX_SIZE-(k+1)-1;
+		A[y*MATRIX_SIZE + x] = 0.0f;
+	}
 }
 

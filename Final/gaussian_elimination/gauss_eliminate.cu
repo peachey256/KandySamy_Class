@@ -116,7 +116,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
         // calculate how large of a threadblock/ grid we need
         int currDim = MATRIX_SIZE - (k + 1);
 
-        // tb_dim 
+      
         if (currDim <= BLOCK_MAX) {
             elim_tb = dim3(currDim, currDim);
             elim_grid = dim3(1, 1);
@@ -143,6 +143,32 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_on_device.elements, k); 
 		cudaThreadSynchronize(); 
 	}
+
+    int threadsNeeded = (MATRIX_SIZE * (MATRIX_SIZE - 1)) / 2;
+    dim3 zero_grid;
+    dim3 zero_tb;
+
+    if ( threadsNeeded < BLOCK_MAX * BLOCK_MAX ) {
+        zero_tb   = dim3(threadsNeeded);
+        zero_grid = dim3(1);
+    } else if (threadsNeeded < BLOCK_MAX * BLOCK_MAX * GRID_MAX * GRID_MAX) {
+        zero_tb   = dim3(BLOCK_MAX * BLOCK_MAX);
+
+        int gridSize = floor(threadsNeeded / (BLOCK_MAX * BLOCK_MAX));
+        if (threadsNeeded % (BLOCK_MAX * BLOCK_MAX)) gridSize++;
+        zero_grid = dim3(gridSize);
+
+    } else {
+        zero_tb   = dim3(BLOCK_MAX * BLOCK_MAX);
+        zero_grid = dim3(GRID_MAX * GRID_MAX);
+    }
+
+    printf("zero_grid = %d\n", zero_grid.x);
+    printf("zero_tb   = %d\n", zero_tb.x);
+
+    zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A_on_device.elements);
+    cudaThreadSynchronize();
+
 	//copy memory back to CPU 
 	copy_matrix_from_device(U, A_on_device); 
     U.elements[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
@@ -283,13 +309,37 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     }
     printf("\n");
 
+    int xDiverge, yDiverge;
+
     for(int i = 0; i < num_elements; i++)
         if(fabsf((reference[i] - gpu_result[i])/reference[i]) > threshold){
             checkMark = 0;
+            xDiverge = i%MATRIX_SIZE;
+            yDiverge = floor(i/MATRIX_SIZE);
             printf(">> diverge at: A[%d, %d]\n", (int)floor(i/MATRIX_SIZE),
                     (int)i%MATRIX_SIZE );
             break;
         }
+
+    if (!checkMark) {
+        
+        printf("\n\n_______REFERENCE_______\n");
+        for(int y = yDiverge - 2; y < yDiverge + 3; y++) {
+            for(int x = xDiverge - 2; x < xDiverge + 3; x++)
+                printf("%f\t", reference[y*MATRIX_SIZE + x]);
+            printf("\n");
+        }
+        printf("\n");
+
+        printf("\n________RESULT________\n");
+        for(int y = yDiverge - 2; y < yDiverge + 3; y++) {
+            for(int x = xDiverge - 2; x < xDiverge + 3; x++)
+                printf("%f\t", gpu_result[y*MATRIX_SIZE + x]);
+            printf("\n");
+        }
+        printf("\n");
+
+    }
 
     for(int i = 0; i < num_elements; i++)
         if(fabsf((reference[i] - gpu_result[i])/reference[i]) > epsilon){
