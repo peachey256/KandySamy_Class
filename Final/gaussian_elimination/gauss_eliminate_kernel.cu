@@ -1,7 +1,7 @@
  /* Device code. */
 #include "gauss_eliminate.h"
 
-__global__ void gauss_division_kernel(float *A, int k)
+__global__ void gauss_division_kernel(double *A, int k)
 {
 	int tid=k+1+(blockDim.x*blockIdx.x+threadIdx.x); 
 	int number_of_updates = MATRIX_SIZE-k-1; //dont do anything before k. 	
@@ -17,7 +17,7 @@ __global__ void gauss_division_kernel(float *A, int k)
 	//value at row k, col k. still have to set k=1... 
 }
 
-__global__ void gauss_eliminate_kernel(float *A, int k)
+__global__ void gauss_eliminate_kernel(double *A, int k)
 {
     int idxX = blockIdx.x * blockDim.x + threadIdx.x + k + 1;
     int idxY = blockIdx.y * blockDim.y + threadIdx.y + k + 1;
@@ -51,7 +51,7 @@ __global__ void gauss_eliminate_kernel(float *A, int k)
     }
 }
 
-__global__ void zero_out_lower_kernel(float *A)
+__global__ void zero_out_lower_kernel(double *A)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     
@@ -68,7 +68,34 @@ __global__ void zero_out_lower_kernel(float *A)
 	    int j = rvLinear - k*(k+1)/2;
 	    int y = MATRIX_SIZE-j-1;
 		int x = MATRIX_SIZE-(k+1)-1;
-		A[y*MATRIX_SIZE + x] = 0.0f;
+		A[y*MATRIX_SIZE + x] = 0.0L;
 	}
 }
 
+__global__ void float_to_double(float *A, double *B)
+{
+    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+    int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+
+    int n_threads = blockDim.x * gridDim.x;
+
+    for (int y = tidy; y < MATRIX_SIZE; y += n_threads) {
+        for (int x = tidx; x < MATRIX_SIZE; x += n_threads) {
+            B[y*MATRIX_SIZE + x] = (double)A[y*MATRIX_SIZE + x];
+        }
+    }
+}
+
+__global__ void double_to_float(float *A, double *B)
+{
+    int tidx = blockIdx.x * blockDim.x + threadIdx.x;
+    int tidy = blockIdx.y * blockDim.y + threadIdx.y;
+
+    int n_threads = blockDim.x * gridDim.x;
+
+    for (int y = tidy; y < MATRIX_SIZE; y += n_threads) {
+        for (int x = tidx; x < MATRIX_SIZE; x += n_threads) {
+            A[y*MATRIX_SIZE + x] = (float)B[y*MATRIX_SIZE + x];
+        }
+    }
+}
