@@ -28,6 +28,7 @@ void write_matrix_to_file(const Matrix M);
 float get_random_number(int, int);
 void checkCUDAError(const char *msg);
 int checkResults(float *reference, float *gpu_result, int num_elements, float threshold);
+void writeToFile(float *A);
 
 
 int 
@@ -293,6 +294,19 @@ checkCUDAError(const char *msg)
 	}						 
 }
 
+void writeToFile(float* A)
+{
+    FILE *fp = fopen("diffMatrix.txt", "w+");
+    for(int y = 0; y < MATRIX_SIZE; y++) {
+    	for(int x = 0; x < MATRIX_SIZE; x++) {
+	    fprintf(fp, "%f\t", A[y*MATRIX_SIZE + x]);
+	}
+	fprintf(fp, "\n");
+    }
+    fprintf(fp, "");
+    fclose(fp);
+}
+
 int 
 checkResults(float *reference, float *gpu_result, int num_elements, float threshold)
 {
@@ -323,9 +337,12 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     }
     printf("\n");
 
+    float* diff = (float *)malloc(sizeof(float)*MATRIX_SIZE*MATRIX_SIZE);
+
     int xDiverge, yDiverge;
 
-    for(int i = 0; i < num_elements; i++)
+    for(int i = 0; i < num_elements; i++) {
+	diff[i] = fabsf(reference[i] - gpu_result[i]);
         if(fabsf((reference[i] - gpu_result[i])/reference[i]) > threshold){
             checkMark = 0;
             xDiverge = i%MATRIX_SIZE;
@@ -334,10 +351,21 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
                     (int)i%MATRIX_SIZE );
             break;
         }
+    }
 
     if (!checkMark) {
+
+	printf("\n\n_______DIFFERENCE_______\n");
+        for(int y = yDiverge-1; y < yDiverge + 4; y++) {
+            for(int x = xDiverge-1; x < xDiverge + 4; x++)
+                printf("%f\t", diff[y*MATRIX_SIZE + x]);
+            printf("\n");
+        }
+        printf("\n");
+
+	writeToFile(diff);
         
-        printf("\n\n_______REFERENCE_______\n");
+        printf("\n_______REFERENCE_______\n");
         for(int y = yDiverge-1; y < yDiverge + 4; y++) {
             for(int x = xDiverge-1; x < xDiverge + 4; x++)
                 printf("%f\t", reference[y*MATRIX_SIZE + x]);
