@@ -149,7 +149,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
                 k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
 
 		//launch elimination for that k_i
-		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_on_device.elements, k); 
+		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
 		cudaThreadSynchronize(); 
 
         dim3 zero_tb, zero_grid;
@@ -183,7 +183,6 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
     printf("zero_grid = %d\n", zero_grid.x);
     printf("zero_tb   = %d\n", zero_tb.x);
 
-<<<<<<< HEAD
     //zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A_on_device.elements);
     //cudaThreadSynchronize();
 
@@ -332,7 +331,7 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     int checkMark = 1;
     float epsilon = 0.0;
  
-    printf("\n\n_______REFERENCE_______\n");
+    /*printf("\n\n_______REFERENCE_______\n");
     for(int y = 0; y < 8; y++) {
         for(int x = MATRIX_SIZE-8; x < MATRIX_SIZE; x++) {
 
@@ -354,7 +353,7 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
         }
         printf("\n");
     }
-    printf("\n");
+    printf("\n");*/
 
     float* diff = (float *)malloc(sizeof(float)*MATRIX_SIZE*MATRIX_SIZE);
 
