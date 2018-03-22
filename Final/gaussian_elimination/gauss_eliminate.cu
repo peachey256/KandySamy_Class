@@ -31,15 +31,22 @@ int checkResults(float *reference, float *gpu_result, int num_elements, float th
 void writeToFile(float *A);
 void zero_out_lower_cpu(float *A);
 
+float CPU_time, GPU_time;
+
 int 
 main(int argc, char** argv) 
 {
+    // Initialize the random number generator with a seed value
+	srand(time(NULL));
+
     // Matrices for the program
 	Matrix  A; // The NxN input matrix
 	Matrix  U; // The upper triangular matrix 
 	
 	// Initialize the random number generator with a seed value 
 	srand(time(NULL));
+    
+    struct timeval startCPU, stopCPU;
 	
 	// Check command line arguments
 	if(argc > 1){
@@ -54,7 +61,12 @@ main(int argc, char** argv)
 	// Perform Gaussian elimination on the CPU 
 	Matrix reference = allocate_matrix(MATRIX_SIZE, MATRIX_SIZE, 0);
 
+
+    gettimeofday(&startCPU, NULL); 
 	int status = compute_gold(reference.elements, A.elements, A.num_rows);
+    gettimeofday(&stopCPU, NULL); 
+	CPU_time=stopCPU.tv_sec-startCPU.tv_sec+(stopCPU.tv_usec-startCPU.tv_usec)/(float)1000000; 
+    printf("CPU took %0.3f\n", CPU_time);
 	
 	if(status == 0){
 		printf("Failed to convert given matrix to upper triangular. Try again. Exiting. \n");
@@ -75,6 +87,9 @@ main(int argc, char** argv)
     int res = checkResults(reference.elements, U.elements, num_elements, 0.001f);
     printf("Test %s\n", (1 == res) ? "PASSED" : "FAILED");
 
+    float speedup = CPU_time / GPU_time;
+    printf("\n >> Speed Up = %f\n", speedup);
+
 	// Free host matrices
 	free(A.elements); A.elements = NULL;
 	free(U.elements); U.elements = NULL;
@@ -87,6 +102,7 @@ main(int argc, char** argv)
 void 
 gauss_eliminate_on_device(const Matrix A, Matrix U)
 {
+    struct timeval startGPU, stopGPU; 
 	Matrix A_on_device, U_on_device; 
 		
 	//allocate memory on GPU 
@@ -115,6 +131,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 
 	int k; 
 	//for all the k 
+    gettimeofday(&startGPU, NULL);
 	for(k=0; k<MATRIX_SIZE-1; k++){
 		//They need to be launched this way to ensure that synchronization
 		//happens between all thread blocks 
@@ -145,8 +162,8 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
             elim_grid = dim3(GRID_MAX, GRID_MAX);
         }
 
-        printf(">> k = %d, grid = %dx%d, block = %dx%d\n",
-                k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
+        //printf(">> k = %d, grid = %dx%d, block = %dx%d\n",
+        //        k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
 
 		//launch elimination for that k_i
 		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
@@ -157,6 +174,10 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
         zero_out_column<<<20, 1024>>>(A_double, k);
         cudaThreadSynchronize();
 	}
+    gettimeofday(&stopGPU, NULL);
+    GPU_time=stopGPU.tv_sec-startGPU.tv_sec+(stopGPU.tv_usec-startGPU.tv_usec)/(float)1000000; 
+    printf("GPU took %0.3f\n", GPU_time);
+
 
     int threadsNeeded = (MATRIX_SIZE * (MATRIX_SIZE - 1)) / 2;
     dim3 zero_grid;
