@@ -72,7 +72,7 @@ __global__ void zero_out_lower_kernel(double *A)
 	    int j = rvLinear - k*(k+1)/2;
 	    int y = MATRIX_SIZE-j-1;
 		int x = MATRIX_SIZE-(k+1)-1;
-		A[y*MATRIX_SIZE + x] = 0.0L;
+		A[y*MATRIX_SIZE + x] = (float)0;
 	}
 }
 

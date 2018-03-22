@@ -29,6 +29,7 @@ float get_random_number(int, int);
 void checkCUDAError(const char *msg);
 int checkResults(float *reference, float *gpu_result, int num_elements, float threshold);
 void writeToFile(float *A);
+void zero_out_lower_cpu(float *A);
 
 
 int 
@@ -174,6 +175,10 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
         zero_grid = dim3(GRID_MAX * GRID_MAX);
     }
 
+    zero_tb   = dim3(16);
+    zero_grid = dim3(4);
+
+
     printf("zero_grid = %d\n", zero_grid.x);
     printf("zero_tb   = %d\n", zero_tb.x);
 
@@ -186,6 +191,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 	//copy memory back to CPU 
 	copy_matrix_from_device(U, A_on_device); 
     U.elements[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
+
 
 	//free all the GPU memory 
     cudaFree(A_double);
@@ -270,6 +276,19 @@ perform_simple_check(const Matrix M)
     return 1;
 } 
 
+void zero_out_lower_cpu(float *A) 
+{
+    for(int idx = 1; idx <= (MATRIX_SIZE*(MATRIX_SIZE-1)/2); idx++) {
+        int rvLinear = (MATRIX_SIZE*(MATRIX_SIZE-1))/2-idx;
+	    int k = floor( (sqrtf(1+8*rvLinear)-1)/2 );
+	    int j = rvLinear - k*(k+1)/2;
+	    int y = MATRIX_SIZE-j-1;
+		int x = MATRIX_SIZE-(k+1)-1;
+		A[y*MATRIX_SIZE + x] = 0.0f;
+        printf("zeroing: [%d, %d] = %f\n", y, x, A[y*MATRIX_SIZE + x]);
+    }
+}
+
 // Writes the matrix to a file 
 void 
 write_matrix_to_file(const Matrix M)
@@ -299,7 +318,7 @@ void writeToFile(float* A)
     FILE *fp = fopen("diffMatrix.txt", "w+");
     for(int y = 0; y < MATRIX_SIZE; y++) {
     	for(int x = 0; x < MATRIX_SIZE; x++) {
-	    fprintf(fp, "%f\t", A[y*MATRIX_SIZE + x]);
+	        fprintf(fp, "%f\t", fabsf(A[y*MATRIX_SIZE + x]));
 	    }
 	fprintf(fp, "\n");
     }
@@ -342,9 +361,12 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     double totalSum = 0.0f, currDiff;
 
     for(int i = 0; i < num_elements; i++) {
-	    currDiff = fabsf((fabsf(reference[i]) -
-                    fabsf(gpu_result[i]))/reference[i]);
-        //totalSum += currDiff;
+        if(reference[i] == 0.0f && gpu_result[i] == 0.0f)
+            currDiff = 0.0f;
+        else
+	        currDiff = fabsf(reference[i] - gpu_result[i])/reference[i];
+        
+        totalSum += currDiff;
         
         /*if(currDiff > threshold){
             checkMark = 0;
