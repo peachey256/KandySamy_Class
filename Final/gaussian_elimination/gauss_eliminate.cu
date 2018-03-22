@@ -123,78 +123,48 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
 		cudaThreadSynchronize(); 
 
-        // calculate how large of a threadblock/ grid we need
-        int currDim = MATRIX_SIZE - (k + 1);
-      
-        if (currDim <= BLOCK_MAX) {
-            elim_tb = dim3(currDim, currDim);
-            elim_grid = dim3(1, 1);
-        } 
-        
-        else if ( currDim < GRID_MAX * BLOCK_MAX ) {
-            elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
+		// calculate how large of a threadblock/ grid we need
+		int currDim = MATRIX_SIZE - (k + 1);
+	      
+		if (currDim <= BLOCK_MAX) {
+		    elim_tb = dim3(currDim, currDim);
+		    elim_grid = dim3(1, 1);
+		} 
+		
+		else if ( currDim < GRID_MAX * BLOCK_MAX ) {
+		    elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
 
-            // grid = # of times 32 goes into BLOCK_MAX * GRID_MAX / 
-            int tmpSize = (int)floor(currDim / BLOCK_MAX) + (currDim % BLOCK_MAX ? 1 : 0);
+		    // grid = # of times 32 goes into BLOCK_MAX * GRID_MAX / 
+		    int tmpSize = (int)floor(currDim / BLOCK_MAX) + (currDim % BLOCK_MAX ? 1 : 0);
 
-            elim_grid = dim3(tmpSize, tmpSize);
-        }
+		    elim_grid = dim3(tmpSize, tmpSize);
+		}
 
-        else {
-            elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
-            elim_grid = dim3(GRID_MAX, GRID_MAX);
-        }
+		else {
+		    elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
+		    elim_grid = dim3(GRID_MAX, GRID_MAX);
+		}
 
-        printf(">> k = %d, grid = %dx%d, block = %dx%d\n",
-                k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
+		printf(">> k = %d, grid = %dx%d, block = %dx%d\n",
+			k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
 
 		//launch elimination for that k_i
 		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
 		cudaThreadSynchronize(); 
 
-        dim3 zero_tb, zero_grid;
-        
-        zero_out_column<<<GRID_SIZE, BLOCK_SIZE>>>(A_double, k);
-        cudaThreadSynchronize();
+		zero_out_column<<<20, 32*32>>>(A_double, k);
+		cudaThreadSynchronize();
 	}
 
-    int threadsNeeded = (MATRIX_SIZE * (MATRIX_SIZE - 1)) / 2;
-    dim3 zero_grid;
-    dim3 zero_tb;
-
-    if ( threadsNeeded < BLOCK_MAX * BLOCK_MAX ) {
-        zero_tb   = dim3(threadsNeeded);
-        zero_grid = dim3(1);
-    } else if (threadsNeeded < BLOCK_MAX * BLOCK_MAX * GRID_MAX * GRID_MAX) {
-        zero_tb   = dim3(BLOCK_MAX * BLOCK_MAX);
-
-        int gridSize = floor(threadsNeeded / (BLOCK_MAX * BLOCK_MAX));
-        if (threadsNeeded % (BLOCK_MAX * BLOCK_MAX)) gridSize++;
-        zero_grid = dim3(gridSize);
-
-    } else {
-        zero_tb   = dim3(BLOCK_MAX * BLOCK_MAX);
-        zero_grid = dim3(GRID_MAX * GRID_MAX);
-    }
-
-    zero_tb   = dim3(16);
-    zero_grid = dim3(4);
-
-    printf("zero_grid = %d\n", zero_grid.x);
-    printf("zero_tb   = %d\n", zero_tb.x);
-
-    //zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A_on_device.elements);
-    //cudaThreadSynchronize();
-
-    //double_to_float<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
-    //cudaThreadSynchronize();
+    	double_to_float<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
+    	cudaThreadSynchronize();
 
 	//copy memory back to CPU 
 	copy_matrix_from_device(U, A_on_device); 
-    U.elements[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
+	U.elements[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
 
 	//free all the GPU memory 
-    cudaFree(A_double);
+    	cudaFree(A_double);
 	cudaFree(A_on_device.elements); 
 }
 

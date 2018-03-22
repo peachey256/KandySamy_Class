@@ -28,16 +28,16 @@ __global__ void gauss_eliminate_kernel( double *A, int k)
         A[k * MATRIX_SIZE + k] = 1.0f;
 
     // stride in X and Y directions
+    for( ; idxY < MATRIX_SIZE; idxY+=n_threads) {
 	for( ; idxX < MATRIX_SIZE; idxX+=n_threads )
-        A[idxY*MATRIX_SIZE+idxX] -= (double)A[idxY*MATRIX_SIZE + k]*(double)A[k*MATRIX_SIZE + idxX];
+		A[idxY*MATRIX_SIZE+idxX] -= (double)A[idxY*MATRIX_SIZE + k]*(double)A[k*MATRIX_SIZE + idxX];
         
-        __syncthreads();
+    }
 }
 
 __global__ void zero_out_column(double *A, int k)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
-
     int n_threads = blockDim.x * gridDim.x;
 
     for (int row = tid + k + 1; row < MATRIX_SIZE; row += n_threads)
