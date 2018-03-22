@@ -94,16 +94,16 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
     U_on_device=allocate_matrix_on_gpu(U);
 
     // allocate matrix of double precision elements
-    /*double* A_double;
+    double* A_double;
     int size = A.num_rows * A.num_columns * sizeof(double);
-    cudaMalloc((void**)&A_double, size);*/
+    cudaMalloc((void**)&A_double, size);
 
 	//copy memory to GPU 
 	copy_matrix_to_device(A_on_device,A);
 
-    //dim3 cpGrid(GRID_MAX, GRID_MAX);
-    //dim3 cpTB(BLOCK_MAX, BLOCK_MAX);
-    //float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
+    dim3 cpGrid(GRID_MAX, GRID_MAX);
+    dim3 cpTB(BLOCK_MAX, BLOCK_MAX);
+    float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
 	
 	//make the thread blocks and grid jawn 
 	dim3 grid(GRID_SIZE); 
@@ -120,7 +120,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 		//happens between all thread blocks 
 
 		//launch division for that k_i
-		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
+		gauss_division_kernel<<<grid, thread_block>>>(A_double, k);
 		cudaThreadSynchronize(); 
 
         // calculate how large of a threadblock/ grid we need
@@ -149,8 +149,13 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
                 k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
 
 		//launch elimination for that k_i
-		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_on_device.elements, k); 
+		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
 		cudaThreadSynchronize(); 
+
+        dim3 zero_tb, zero_grid;
+        
+        zero_out_column<<<GRID_SIZE, BLOCK_SIZE>>>(A_double, k);
+        cudaThreadSynchronize();
 	}
 
     int threadsNeeded = (MATRIX_SIZE * (MATRIX_SIZE - 1)) / 2;
@@ -179,11 +184,11 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
     printf("zero_grid = %d\n", zero_grid.x);
     printf("zero_tb   = %d\n", zero_tb.x);
 
-    zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A_on_device.elements);
-    cudaThreadSynchronize();
+    //zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A_on_device.elements);
+    //cudaThreadSynchronize();
 
-    /*double_to_float<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
-    cudaThreadSynchronize();*/
+    double_to_float<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
+    cudaThreadSynchronize();
 
 	//copy memory back to CPU 
 	copy_matrix_from_device(U, A_on_device); 
