@@ -1,7 +1,7 @@
  /* Device code. */
 #include "gauss_eliminate.h"
 
-__global__ void gauss_division_kernel(double *A, int k)
+__global__ void gauss_division_kernel(float *A, int k)
 {
 	int tid=k+1+(blockDim.x*blockIdx.x+threadIdx.x); 
 	int number_of_updates = MATRIX_SIZE-k-1; //dont do anything before k. 	
@@ -17,7 +17,7 @@ __global__ void gauss_division_kernel(double *A, int k)
 	//value at row k, col k. still have to set k=1... 
 }
 
-__global__ void gauss_eliminate_kernel(double *A, int k)
+__global__ void gauss_eliminate_kernel(float *A, int k)
 {
     int idxX = blockIdx.x * blockDim.x + threadIdx.x + k + 1;
     int idxY = blockIdx.y * blockDim.y + threadIdx.y + k + 1;
@@ -41,21 +41,18 @@ __global__ void gauss_eliminate_kernel(double *A, int k)
 	for( ; idxY < MATRIX_SIZE; idxY+=n_threads ) {
 	    for( ; idxX < MATRIX_SIZE; idxX+=n_threads ) {
             
-            // TODO: A[i,j] = A[i,j] - A[i,k] * A[k,j];
-            double tmp = (double)A[idxY*MATRIX_SIZE+idxX] -
+            double tmp =
                 (double)A[idxY*MATRIX_SIZE + k]*(double)A[k*MATRIX_SIZE + idxX];
 
-            A[idxY*MATRIX_SIZE+idxX] = tmp; 
+            A[idxY*MATRIX_SIZE+idxX] -= (float)tmp; 
         }
            
-        // zero out element below diagonal after sync
-
         __syncthreads();
         //A[idxY*MATRIX_SIZE + k] = 0.0f;
     }
 }
 
-__global__ void zero_out_lower_kernel(double *A)
+__global__ void zero_out_lower_kernel(float *A)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     
