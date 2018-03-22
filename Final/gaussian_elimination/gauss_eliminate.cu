@@ -95,9 +95,9 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
     U_on_device=allocate_matrix_on_gpu(U);
 
     // allocate matrix of double precision elements
-    double* A_double;
+    /*double* A_double;
     int size = A.num_rows * A.num_columns * sizeof(double);
-    cudaMalloc((void**)&A_double, size);
+    cudaMalloc((void**)&A_double, size);*/
 
 	//copy memory to GPU 
 	copy_matrix_to_device(A_on_device,A);
@@ -105,7 +105,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
     dim3 cpGrid(GRID_MAX, GRID_MAX);
     dim3 cpTB(BLOCK_MAX, BLOCK_MAX);
 
-    float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
+    //float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
 	
 	//make the thread blocks and grid jawn 
 	dim3 grid(GRID_SIZE); 
@@ -122,7 +122,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 		//happens between all thread blocks 
 
 		//launch division for that k_i
-		gauss_division_kernel<<<grid, thread_block>>>(A_double, k);
+		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
 		cudaThreadSynchronize(); 
 
         // calculate how large of a threadblock/ grid we need
@@ -152,7 +152,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
                 k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
 
 		//launch elimination for that k_i
-		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
+		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_on_device.elements, k); 
 		cudaThreadSynchronize(); 
 	}
 
@@ -178,23 +178,21 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
     zero_tb   = dim3(16);
     zero_grid = dim3(4);
 
-
     printf("zero_grid = %d\n", zero_grid.x);
     printf("zero_tb   = %d\n", zero_tb.x);
 
-    zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A_double);
+    zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A.elements);
     cudaThreadSynchronize();
 
-    double_to_float<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
-    cudaThreadSynchronize();
+    //double_to_float<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
+    //cudaThreadSynchronize();
 
 	//copy memory back to CPU 
 	copy_matrix_from_device(U, A_on_device); 
     U.elements[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
 
-
 	//free all the GPU memory 
-    cudaFree(A_double);
+    // cudaFree(A_double);
 	cudaFree(A_on_device.elements); 
 }
 
@@ -207,17 +205,17 @@ allocate_matrix_on_gpu(const Matrix M)
     cudaMalloc((void**)&Mdevice.elements, size);
     return Mdevice;
 }
-
 // Allocate a matrix of dimensions height*width
 //	If init == 0, initialize to all zeroes.  
 //	If init == 1, perform random initialization.
 Matrix 
 allocate_matrix(int num_rows, int num_columns, int init)
 {
-    	Matrix M;
-    	M.num_columns = M.pitch = num_columns;
-    	M.num_rows = num_rows;
-    	int size = M.num_rows * M.num_columns;
+
+    Matrix M;
+    M.num_columns = M.pitch = num_columns;
+    M.num_rows = num_rows;
+    int size = M.num_rows * M.num_columns;
 		
 	M.elements = (float*) malloc(size*sizeof(float));
 	for(unsigned int i = 0; i < size; i++){
@@ -357,63 +355,30 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
 
     float* diff = (float *)malloc(sizeof(float)*MATRIX_SIZE*MATRIX_SIZE);
 
-    int xDiverge, yDiverge;
+    //int xDiverge, yDiverge;
     double totalSum = 0.0f, currDiff;
 
     for(int i = 0; i < num_elements; i++) {
         if(reference[i] == 0.0f && gpu_result[i] == 0.0f)
             currDiff = 0.0f;
-        else
-	        currDiff = fabsf(reference[i] - gpu_result[i])/reference[i];
+        else if(reference[i] == 0.0f) {
+            currDiff = fabsf(gpu_result[i]);
+        }
+        else {
+	        currDiff = fabsf((reference[i] - gpu_result[i])/reference[i]);
+            if (currDiff > threshold)
+                checkMark = 0;
+        }
         
         totalSum += currDiff;
-        
-        /*if(currDiff > threshold){
-            checkMark = 0;
-            xDiverge = i%MATRIX_SIZE;
-            yDiverge = floor(i/MATRIX_SIZE);
-            printf(">> diverge at: A[%d, %d]\n", (int)floor(i/MATRIX_SIZE),
-                    (int)i%MATRIX_SIZE );
-            break;
-        }*/
-
         diff[i] = currDiff;
+        if (currDiff > epsilon)
+            epsilon = currDiff;
     }
 
-    // if average diff is greater than thresh
-    printf("Total Diff: %f\n", totalSum);
-    if (totalSum/(MATRIX_SIZE*MATRIX_SIZE) > threshold) {
-        checkMark = 0;
-    }
-
+    printf("Total Diff  = %f\n", totalSum);
+    printf("Max epsilon = %f. \n", epsilon); 
     writeToFile(diff);
 
-
-    if (!checkMark) {
-
-        printf("\n_______REFERENCE_______\n");
-        for(int y = yDiverge-1; y < yDiverge + 4; y++) {
-            for(int x = xDiverge-1; x < xDiverge + 4; x++)
-                printf("%f\t", reference[y*MATRIX_SIZE + x]);
-            printf("\n");
-        }
-        printf("\n");
-
-        printf("\n________RESULT________\n");
-        for(int y = yDiverge-1; y < yDiverge + 4; y++) {
-            for(int x = xDiverge-1; x < xDiverge + 4; x++)
-                printf("%f\t", gpu_result[y*MATRIX_SIZE + x]);
-            printf("\n");
-        }
-        printf("\n");
-
-    }
-
-    for(int i = 0; i < num_elements; i++)
-        if(fabsf((reference[i] - gpu_result[i])/reference[i]) > epsilon){
-            epsilon = fabsf((reference[i] - gpu_result[i])/reference[i]);
-        }
-
-    printf("Max epsilon = %f. \n", epsilon); 
     return checkMark;
 }
