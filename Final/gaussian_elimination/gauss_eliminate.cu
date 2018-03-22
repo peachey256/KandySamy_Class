@@ -154,7 +154,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 
         dim3 zero_tb, zero_grid;
         
-        zero_out_column<<<GRID_SIZE, BLOCK_SIZE>>>(A_double, k);
+        zero_out_column<<<20, 1024>>>(A_double, k);
         cudaThreadSynchronize();
 	}
 
