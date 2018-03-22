@@ -119,28 +119,59 @@ snippet below, the threads stride in the column if necessary.
 \vspace{-0.25cm}
 
 \subsection{Discussion of Speed-Up}
+
+Substantial speed-up was gained by the GPU version of the
+Gaussian elimination algorithm. The Speed-Up was calculated 
+using Equation 1. As expected, this speed-up increased as
+the size of the matrix increased. Gaussian elimination
+did not gain as much speed-up as some other algorithms.
+This is partially due to the repeated access of global 
+memory which is a burden on the speed of the kernel.
+
+\begin{equation}
+    s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
+\end{equation}
+
 \begin{table}[H]
 \centering
-\begin{tabular}{@{}|l|l|c|}
+\begin{tabular}{@{}|l|c|}
 \hline
-Thread Block Size & Matrix Size & Speed-Up \\ \hline
-16 & 512 & 2.131  \\ \hline
-16 & 1024 &  9.539 \\ \hline
-16 & 2048 &  28.503 \\ \hline
-32 & 512 & 2.117  \\ \hline
-32 & 1024 & 9.873  \\ \hline
-32 & 2048 & 24.962  \\ \hline
+Matrix Size & Speed-Up \\ \hline
+512  &  4.23   \\ \hline
+1024 &  14.04  \\ \hline
+2048 &  42.26  \\ \hline
 \end{tabular}
 \caption{Speed-Up calculated on Xunil-05}
 \end{table}
 
 \subsection{Discussion of Error}
 
+When compiling and executing our code, you may notice that
+the program does not report ``PASSED''. After more than a
+week of debugging time has run out and we need to examine
+why the algorithm is not working properly. To visualize
+the problem, the differences between corresponding elements
+in the reference and the result matrices were written to
+a third matrix. This difference matrix was then plotted
+in a 3D surface plot as seen in Figure 1, Figure 2 and Figure 3.
+Note- these plots are upside down so the error is located near
+the last column and last row of the difference matrix.
+
+All 3 figures show the majority of the differences between
+the two matrices were zero or near-zero with the exception
+of a few spikes. These spikes of error are concentrated 
+near the bottom right of the matrix, above the diagonal.
+Initially, it was hypothesised that the error was due to aggregation
+of single-precision floating point rounding errors. However,
+the error remained after changing all of the GPU calculations to
+double-precision.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{imgs/32.png}
     \caption{Difference for 32x32 Matrix}
 \end{figure}
+
 
 \begin{figure}[H]
     \centering
@@ -153,7 +184,5 @@ Thread Block Size & Matrix Size & Speed-Up \\ \hline
     \includegraphics[width=\textwidth]{imgs/1024.png}
     \caption{Difference for 1024x1024 Matrix}
 \end{figure}
-
-\section{Conclusions}
 
 \end{document}
