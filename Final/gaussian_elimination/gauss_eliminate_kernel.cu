@@ -1,7 +1,7 @@
  /* Device code. */
 #include "gauss_eliminate.h"
 
-__global__ void gauss_division_kernel(double *A, int k)
+__global__ void gauss_division_kernel( float *A, int k)
 {
 	int tid=k+1+(blockDim.x*blockIdx.x+threadIdx.x); 
 	int number_of_updates = MATRIX_SIZE-k-1; //dont do anything before k. 	
@@ -17,27 +17,21 @@ __global__ void gauss_division_kernel(double *A, int k)
 	//value at row k, col k. still have to set k=1... 
 }
 
-__global__ void gauss_eliminate_kernel(double *A, int k)
+__global__ void gauss_eliminate_kernel( double *A, int k)
 {
     int idxX = blockIdx.x * blockDim.x + threadIdx.x + k + 1;
     int idxY = blockIdx.y * blockDim.y + threadIdx.y + k + 1;
 
-    // figure out if we need striding
     int n_threads   = blockDim.x * gridDim.x;
 
     if ( !(idxX-k-1) && !(idxY-k-1) )
         A[k * MATRIX_SIZE + k] = 1.0f;
 
     // stride in X and Y directions
-	for( ; idxY < MATRIX_SIZE; idxY+=n_threads ) {
-	    for( ; idxX < MATRIX_SIZE; idxX+=n_threads ) {
-            
-            A[idxY*MATRIX_SIZE+idxX] -= 
-                (float)((double)A[idxY*MATRIX_SIZE+k]*
-                        (double)A[k*MATRIX_SIZE + idxX]);
-        }
+	for( ; idxX < MATRIX_SIZE; idxX+=n_threads )
+        A[idxY*MATRIX_SIZE+idxX] -= (double)A[idxY*MATRIX_SIZE + k]*(double)A[k*MATRIX_SIZE + idxX];
+        
         __syncthreads();
-    }
 }
 
 __global__ void zero_out_column(double *A, int k)
