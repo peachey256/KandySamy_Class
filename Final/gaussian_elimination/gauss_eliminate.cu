@@ -83,8 +83,9 @@ main(int argc, char** argv)
 	gauss_eliminate_on_device(A, U);
     
 	// check if the device result is equivalent to the expected solution
-	int num_elements = MATRIX_SIZE*MATRIX_SIZE;
-    int res = checkResults(reference.elements, U.elements, num_elements, 0.001f);
+    int num_elements = MATRIX_SIZE*MATRIX_SIZE;
+    int tol = 0.001f;
+    int res = checkResults(reference.elements,U.elements,num_elements,tol);
     printf("Test %s\n", (1 == res) ? "PASSED" : "FAILED");
 
     float speedup = CPU_time / GPU_time;
@@ -103,137 +104,53 @@ void
 gauss_eliminate_on_device(const Matrix A, Matrix U)
 {
     struct timeval startGPU, stopGPU; 
-	Matrix A_on_device, U_on_device; 
+    Matrix A_on_device, U_on_device; 
 		
-	//allocate memory on GPU 
-	A_on_device=allocate_matrix_on_gpu(A);
+    //allocate memory on GPU 
+    A_on_device=allocate_matrix_on_gpu(A);
     U_on_device=allocate_matrix_on_gpu(U);
 
-    // allocate matrix of double precision elements
-    double* A_double;
-    int size = A.num_rows * A.num_columns * sizeof(double);
-    cudaMalloc((void**)&A_double, size);
+    //copy memory to GPU 
+    copy_matrix_to_device(A_on_device,A);
 
-	//copy memory to GPU 
-	copy_matrix_to_device(A_on_device,A);
-
-    dim3 cpGrid(GRID_MAX, GRID_MAX);
-    dim3 cpTB(BLOCK_MAX, BLOCK_MAX);
-    // float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
-	
-	//make the thread blocks and grid jawn 
-	dim3 grid(GRID_SIZE); 
-	dim3 thread_block(BLOCK_SIZE); 
+    //make the thread blocks and grid jawn 
+    dim3 grid(GRID_SIZE); 
+    dim3 thread_block(BLOCK_SIZE); 
 
     // sizes get assigned later
     dim3 elim_grid;
     dim3 elim_tb;
 
-	int k; 
+    int k; 
     int num_blocks, num_cols;
 
-    for(k=0; k<MATRIX_SIZE && false; k++) {
+    gettimeofday(&startGPU, NULL);
+    for(k=0; k<MATRIX_SIZE; k++) {
 
         // launch division for current k
-		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
-		cudaThreadSynchronize(); 
+	gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
+	cudaThreadSynchronize(); 
 
         // launch eliminate kernel for k
-        gauss_eliminate_kernel2<<<grid, thread_block>>>(A_on_device.elements, k);
-
-        // zero out subdiagonal elements in column k
-        zero_out_column<<<4, 16>>>(A_on_device.elements, k);
-        cudaThreadSynchronize();
-    }
-
-
-	//for all the k 
-    gettimeofday(&startGPU, NULL);
-	for(k=0; k<MATRIX_SIZE-1 && false; k++){
-		//They need to be launched this way to ensure that synchronization
-		//happens between all thread blocks 
-
-		//launch division for that k_i
-		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
-		cudaThreadSynchronize(); 
-
-        // calculate how large of a threadblock/ grid we need
-        int currDim = MATRIX_SIZE - (k + 1);
-      
-        if (currDim <= BLOCK_MAX) {
-            elim_tb = dim3(currDim, currDim);
-            elim_grid = dim3(1, 1);
-        } 
+	int num_blocks = ceil((MATRIX_SIZE-1) - k / BLOCK_SIZE);
+	elim_grid = dim3(num_blocks<GRID_SIZE?num_blocks:GRID_SIZE);
+	elim_tb   = dim3(BLOCK_SIZE);
+        gauss_eliminate_kernel2<<<elim_grid, elim_tb>>>(A_on_device.elements, k);
         
-        else if ( currDim < GRID_MAX * BLOCK_MAX ) {
-            elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
-
-            // grid = # of times 32 goes into BLOCK_MAX * GRID_MAX / 
-            int tmpSize = (int)floor(currDim / BLOCK_MAX) + (currDim % BLOCK_MAX ? 1 : 0);
-
-            elim_grid = dim3(tmpSize, tmpSize);
-        }
-
-        else {
-            elim_tb = dim3(BLOCK_MAX, BLOCK_MAX);
-            elim_grid = dim3(GRID_MAX, GRID_MAX);
-        }
-
-        //printf(">> k = %d, grid = %dx%d, block = %dx%d\n",
-        //        k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
-
-		//launch elimination for that k_i
-		//gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
-		cudaThreadSynchronize(); 
-
-        dim3 zero_tb, zero_grid;
-        
+	// zero out subdiagonal elements in column k
         zero_out_column<<<20, 1024>>>(A_on_device.elements, k);
         cudaThreadSynchronize();
-	}
+    }
     gettimeofday(&stopGPU, NULL);
     GPU_time=stopGPU.tv_sec-startGPU.tv_sec+(stopGPU.tv_usec-startGPU.tv_usec)/(float)1000000; 
     printf("GPU took %0.3f\n", GPU_time);
 
 
-    int threadsNeeded = (MATRIX_SIZE * (MATRIX_SIZE - 1)) / 2;
-    dim3 zero_grid;
-    dim3 zero_tb;
-
-    if ( threadsNeeded < BLOCK_MAX * BLOCK_MAX ) {
-        zero_tb   = dim3(threadsNeeded);
-        zero_grid = dim3(1);
-    } else if (threadsNeeded < BLOCK_MAX * BLOCK_MAX * GRID_MAX * GRID_MAX) {
-        zero_tb   = dim3(BLOCK_MAX * BLOCK_MAX);
-
-        int gridSize = floor(threadsNeeded / (BLOCK_MAX * BLOCK_MAX));
-        if (threadsNeeded % (BLOCK_MAX * BLOCK_MAX)) gridSize++;
-        zero_grid = dim3(gridSize);
-
-    } else {
-        zero_tb   = dim3(BLOCK_MAX * BLOCK_MAX);
-        zero_grid = dim3(GRID_MAX * GRID_MAX);
-    }
-
-    zero_tb   = dim3(16);
-    zero_grid = dim3(4);
-
-    printf("zero_grid = %d\n", zero_grid.x);
-    printf("zero_tb   = %d\n", zero_tb.x);
-
-    //zero_out_lower_kernel<<<zero_grid, zero_tb>>>(A_on_device.elements);
-    //cudaThreadSynchronize();
-
-    //double_to_float<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
-    //cudaThreadSynchronize();
-
-	//copy memory back to CPU 
-	copy_matrix_from_device(U, A_on_device); 
+    copy_matrix_from_device(U, A_on_device); 
     U.elements[MATRIX_SIZE*MATRIX_SIZE-1] = 1.0f;
 
-	//free all the GPU memory 
-    cudaFree(A_double);
-	cudaFree(A_on_device.elements); 
+    //free all the GPU memory 
+    cudaFree(A_on_device.elements); 
 }
 
 // Allocate a device matrix of same size as M.
@@ -369,30 +286,6 @@ checkResults(float *reference, float *gpu_result, int num_elements, float thresh
     int checkMark = 1;
     float epsilon = 0.0;
  
-    /*printf("\n\n_______REFERENCE_______\n");
-    for(int y = 0; y < 8; y++) {
-        for(int x = MATRIX_SIZE-8; x < MATRIX_SIZE; x++) {
-
-    //for(int y = 0; y < 5; y++) {
-    //    for(int x = 0; x < 5; x++) {
-
-            printf("%f\t", reference[y*MATRIX_SIZE+x]);
-        }
-        printf("\n");
-    }
-
-    printf("\n________RESULT________\n");
-    for(int y = 0; y < 8; y++) {
-        for(int x = MATRIX_SIZE-8; x < MATRIX_SIZE; x++) {
-
-    //for(int y = 0; y < 5; y++) {
-    //    for(int x = 0; x < 5; x++) {
-            printf("%f\t", gpu_result[y*MATRIX_SIZE+x]);
-        }
-        printf("\n");
-    }
-    printf("\n");*/
-
     float* diff = (float *)malloc(sizeof(float)*MATRIX_SIZE*MATRIX_SIZE);
 
     //int xDiverge, yDiverge;

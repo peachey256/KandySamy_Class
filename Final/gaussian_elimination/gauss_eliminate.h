@@ -5,7 +5,7 @@
 #define MATRIX_SIZE 512
 #define NUM_COLUMNS MATRIX_SIZE // Number of columns in Matrix A
 #define NUM_ROWS MATRIX_SIZE // Number of rows in Matrix A
-#define GRID_SIZE 10
+#define GRID_SIZE 20
 #define BLOCK_SIZE 256
 
 #define GRID_MAX  4

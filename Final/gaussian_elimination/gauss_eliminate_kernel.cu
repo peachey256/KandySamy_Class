@@ -25,8 +25,8 @@ __global__ void gauss_eliminate_kernel2( float *A, int k)
     if(!(col-k-1))
         A[k*MATRIX_SIZE + k] = 1.0f;
 
-    for ( ; col<MATRIX_SIZE-1; col+=stride_len)
-        for (int row=k+1; row<MATRIX_SIZE-1; row++)
+    for ( ; col<MATRIX_SIZE; col+=stride_len)
+        for (int row=k+1; row<MATRIX_SIZE; row++)
             A[row*MATRIX_SIZE+col]-=A[k*MATRIX_SIZE+col]*A[row*MATRIX_SIZE+k];
 }
 
@@ -68,8 +68,8 @@ __global__ void zero_out_lower_kernel(double *A)
 	    int k = floor( (sqrtf(1+8*rvLinear)-1)/2 );
 	    int j = rvLinear - k*(k+1)/2;
 	    int y = MATRIX_SIZE-j-1;
-		int x = MATRIX_SIZE-(k+1)-1;
-		A[y*MATRIX_SIZE + x] = (float)0;
+	     int x = MATRIX_SIZE-(k+1)-1;
+	     A[y*MATRIX_SIZE + x] = (float)0;
 	}
 }
 
