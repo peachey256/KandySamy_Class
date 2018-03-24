@@ -82,18 +82,18 @@ The elimination step was parallelized for each element below
 and to the current diagonal element A[k,k].
 As seen below, thread (0,0) sets the current diagonal element 
 A[k,k] to 1. This introduces a very minor amount of thread divergence.
-This delay is minor especially since no threads have to wait
-for this assignment to happen.
+This delay is minor especially since none of the other threads 
+have to wait for this assignment to happen.
 
 \vspace{0.25cm}
-\lstinputlisting[language=C, firstline=28, lastline=29, numbers=left]
+\lstinputlisting[language=C, firstline=25, lastline=26, numbers=left]
 {../gaussian_elimination/gauss_eliminate_kernel.cu }
 
 Next, all the threads, execute the code snippet below
 which performs the elimination operation using striding if necessary.
 
 \vspace{0.25cm}
-\lstinputlisting[language=C, firstline=32, lastline=40, numbers=left]
+\lstinputlisting[language=C, firstline=28, lastline=30, numbers=left]
 {../gaussian_elimination/gauss_eliminate_kernel.cu }
 
 \pagebreak
@@ -110,7 +110,7 @@ the sub-diagonal elements in column $k$. As seen in the code
 snippet below, the threads stride in the column if necessary.
 
 \vspace{0.25cm}
-\lstinputlisting[language=C, firstline=45, lastline=50, numbers=left]
+\lstinputlisting[language=C, firstline=52, lastline=56, numbers=left]
 {../gaussian_elimination/gauss_eliminate_kernel.cu }
 
 
@@ -128,6 +128,20 @@ did not gain as much speed-up as some other algorithms.
 This is partially due to the repeated access of global 
 memory which is a burden on the speed of the kernel.
 
+Initially, the elimination kernel was written to be parallelized 
+in both dimensions. Each element was calculated in parallel to the
+rest. However, this method did not yield an accurate result matrix.
+Based on a recommendation by Shihao, the elimination kernel was
+modified to be parallelized only in a single dimension so each 
+thread would calculate a whole column of the sub-matrix below k.
+Unfortunately, this also did not yield an accurate result matrix
+as seen in the next section. 
+
+As seen in the differences between Table 1 and Table 2, the 
+fully parallelized elimination kernel yielded a much faster
+algorithm than the elimination kernel which was only parallelized
+in a single dimension.
+
 \begin{equation}
     s = \frac{t_{serial}}{t_{parallel}}\label{eq1}
 \end{equation}
@@ -141,9 +155,25 @@ Matrix Size & Speed-Up \\ \hline
 1024 &  14.04  \\ \hline
 2048 &  42.26  \\ \hline
 \end{tabular}
-\caption{Speed-Up calculated on Xunil-05}
+\caption{Speed-Up calculated on Xunil-05 with elimination parallelized in
+both dimensions}
 \end{table}
 
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}|l|c|}
+\hline
+Matrix Size & Speed-Up \\ \hline
+512  &  2.62   \\ \hline
+1024 &  3.92  \\ \hline
+2048 &  6.14  \\ \hline
+\end{tabular}
+\caption{Speed-Up calculated on Xunil-05 with elimination parallelized
+in a single dimension}
+\end{table}
+
+
+\pagebreak
 \subsection{Discussion of Error}
 
 When compiling and executing our code, you may notice that
@@ -153,13 +183,13 @@ why the algorithm is not working properly. To visualize
 the problem, the differences between corresponding elements
 in the reference and the result matrices were written to
 a third matrix. This difference matrix was then plotted
-in a 3D surface plot as seen in Figure 1, Figure 2 and Figure 3.
+in a 3D surface plot as seen in Figure 1 and Figure 2.
 Note- these plots are upside down so the error is located near
 the last column and last row of the difference matrix.
 
 All 3 figures show the majority of the differences between
 the two matrices were zero or near-zero with the exception
-of a few spikes. These spikes of error are concentrated 
+of a few spikes. These non-periodic spikes of error are concentrated 
 near the bottom right of the matrix, above the diagonal.
 Initially, it was hypothesised that the error was due to aggregation
 of single-precision floating point rounding errors. However,
@@ -168,21 +198,15 @@ double-precision.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{imgs/32.png}
-    \caption{Difference for 32x32 Matrix}
+    \includegraphics[width=\textwidth]{imgs/2048_2.png}
+    \caption{Difference for 2048x2048 Matrix}
 \end{figure}
 
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{imgs/256.png}
-    \caption{Difference for 256x256 Matrix}
-\end{figure}
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=\textwidth]{imgs/1024.png}
-    \caption{Difference for 1024x1024 Matrix}
+    \includegraphics[width=\textwidth]{imgs/2048_3.png}
+    \caption{Another difference for 2048x2048 Matrix}
 \end{figure}
 
 \end{document}

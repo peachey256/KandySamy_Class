@@ -50,7 +50,6 @@ __global__ void gauss_eliminate_kernel( float *A, int k)
 __global__ void zero_out_column(float *A, int k)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
-
     int n_threads = blockDim.x * gridDim.x;
 
     for (int row = tid + k + 1; row < MATRIX_SIZE; row += n_threads)
