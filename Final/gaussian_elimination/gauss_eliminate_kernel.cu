@@ -17,7 +17,20 @@ __global__ void gauss_division_kernel( float *A, int k)
 	//value at row k, col k. still have to set k=1... 
 }
 
-__global__ void gauss_eliminate_kernel( double *A, int k)
+__global__ void gauss_eliminate_kernel2( float *A, int k)
+{
+    int col = blockIdx.x * blockDim.x + threadIdx.x + k + 1;
+    int stride_len = blockDim.x * gridDim.x;
+
+    if(!(col-k-1))
+        A[k*MATRIX_SIZE + k] = 1.0f;
+
+    for ( ; col<MATRIX_SIZE-1; col+=stride_len)
+        for (int row=k+1; row<MATRIX_SIZE-1; row++)
+            A[row*MATRIX_SIZE+col]-=A[k*MATRIX_SIZE+col]*A[row*MATRIX_SIZE+k];
+}
+
+__global__ void gauss_eliminate_kernel( float *A, int k)
 {
     int idxX = blockIdx.x * blockDim.x + threadIdx.x + k + 1;
     int idxY = blockIdx.y * blockDim.y + threadIdx.y + k + 1;
@@ -34,7 +47,7 @@ __global__ void gauss_eliminate_kernel( double *A, int k)
         __syncthreads();
 }
 
-__global__ void zero_out_column(double *A, int k)
+__global__ void zero_out_column(float *A, int k)
 {
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
 

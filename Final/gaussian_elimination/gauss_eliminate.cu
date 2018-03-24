@@ -119,7 +119,7 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
 
     dim3 cpGrid(GRID_MAX, GRID_MAX);
     dim3 cpTB(BLOCK_MAX, BLOCK_MAX);
-    float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
+    // float_to_double<<<cpGrid, cpTB>>>(A_on_device.elements, A_double);
 	
 	//make the thread blocks and grid jawn 
 	dim3 grid(GRID_SIZE); 
@@ -130,9 +130,26 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
     dim3 elim_tb;
 
 	int k; 
+    int num_blocks, num_cols;
+
+    for(k=0; k<MATRIX_SIZE && false; k++) {
+
+        // launch division for current k
+		gauss_division_kernel<<<grid, thread_block>>>(A_on_device.elements, k);
+		cudaThreadSynchronize(); 
+
+        // launch eliminate kernel for k
+        gauss_eliminate_kernel2<<<grid, thread_block>>>(A_on_device.elements, k);
+
+        // zero out subdiagonal elements in column k
+        zero_out_column<<<4, 16>>>(A_on_device.elements, k);
+        cudaThreadSynchronize();
+    }
+
+
 	//for all the k 
     gettimeofday(&startGPU, NULL);
-	for(k=0; k<MATRIX_SIZE-1; k++){
+	for(k=0; k<MATRIX_SIZE-1 && false; k++){
 		//They need to be launched this way to ensure that synchronization
 		//happens between all thread blocks 
 
@@ -166,12 +183,12 @@ gauss_eliminate_on_device(const Matrix A, Matrix U)
         //        k, elim_tb.x, elim_tb.y, elim_grid.x, elim_grid.y);
 
 		//launch elimination for that k_i
-		gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
+		//gauss_eliminate_kernel<<<elim_grid, elim_tb>>>(A_double, k); 
 		cudaThreadSynchronize(); 
 
         dim3 zero_tb, zero_grid;
         
-        zero_out_column<<<20, 1024>>>(A_double, k);
+        zero_out_column<<<20, 1024>>>(A_on_device.elements, k);
         cudaThreadSynchronize();
 	}
     gettimeofday(&stopGPU, NULL);
